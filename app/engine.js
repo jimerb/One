@@ -67,11 +67,14 @@ function clearChallenges(player) {
 function clearPrevious(game) {
   if (game.lastPlayer !== null) clearChallenges(game.players[game.lastPlayer]);
   if (game.wildChallenge?.actor === game.lastPlayer) game.wildChallenge = null;
+  game.lastPlayer = null; game.lastPlayerOneCalled = false;
 }
 function beginTurn(game) {
   const player = game.players[game.turn];
   player.oneCalled = false;
-  clearChallenges(player);
+  // Skip/Reverse with two survivors and Shark can return to the same actor.
+  // Starting that turn must not erase a catch before any next move is accepted.
+  if (game.lastPlayer !== game.turn) clearChallenges(player);
   game.drawn = null; game.drawAttempted = false; game.mayPass = game.pending.length > 0;
   game.phase = 'turn';
 }
@@ -185,7 +188,7 @@ function selectDealer(game) {
 }
 function startRound(game) {
   game.round++;
-  game.direction = 1; game.lastPlayer = null; game.turn = game.dealer;
+  game.direction = 1; game.lastPlayer = null; game.lastPlayerOneCalled = false; game.turn = game.dealer;
   game.drawn = null; game.pending = []; game.wildChallenge = null; game.colorChoice = null;
   game.penaltyKind = null; game.penaltyActor = null;
   game.drawAttempted = false; game.mayPass = false; game.phase = 'turn'; game.result = null;
@@ -284,6 +287,8 @@ function finishMove(game, actor) {
   const player = game.players[actor];
   if (player.hand.length === 1 && !player.oneCalled) { player.unoEligible = true; player.unoOffense = true; player.unoSafe = false; }
   advance(game); game.turns++;
+  // Effect traversal can visit skipped seats; the last mover is still the actor.
+  game.lastPlayer = actor; game.lastPlayerOneCalled = player.oneCalled;
   if (!player.hand.length) scoreRound(game, actor);
   else beginTurn(game);
 }
@@ -362,8 +367,8 @@ export function applyAction(previous, actor, command) {
       if (fromDraw) game.drawn = null; else player.hand.splice(index, 1);
       game.discard.push(card);
       event(game, 'play', `${player.name} played ${cardName(card)}.`, { actor, card });
-      resolveEffect(game, card, actor);
       clearPrevious(game);
+      resolveEffect(game, card, actor);
       if (game.phase !== 'color') finishMove(game, actor);
     } else throw new RuleError('That action is not available.');
   }
@@ -376,6 +381,7 @@ export function projectGame(game, viewer = null, revealBots = false) {
   const myTurn = viewer === game.turn && game.phase === 'turn';
   return { revision: game.revision, options: game.options, phase: game.phase, round: game.round,
     turns: game.turns, turn: game.turn, direction: game.direction, dealer: game.dealer, lastPlayer: game.lastPlayer,
+    lastPlayerOneCalled: game.lastPlayerOneCalled ?? false,
     activeColor: game.activeColor, discard: game.discard.at(-1), drawCount: game.draw.length, discardCount: game.discard.length,
     pendingCount: game.pending.length, penaltyKind: game.penaltyKind, viewer,
     players: game.players.map(player => ({ id: player.id, name: player.name, human: player.human, team: player.team,

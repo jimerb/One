@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { createGame, applyAction, projectGame, assertIntegrity, normalizeOptions, RuleError } from './engine.js';
-import { chooseBotAction } from './ai.js';
+import { chooseBotAction, chooseBotOneChallenge } from './ai.js';
 
 const BOT_NAMES = ['Maya', 'Jules', 'Theo', 'Iris'];
 const safeName = value => {
@@ -77,7 +77,7 @@ export class RoomManager extends EventEmitter {
     }
     room.game = createGame(room.seats, room.options, room.seed);
     if (this.timers) for (const seat of room.seats) if (seat.human && !seat.connected) this.connected(seat.token, false);
-    room.botTurnKey = null; this.changed(room); this.plan(room);
+    room.botTurnKey = null; room.botCatchKey = null; this.changed(room); this.plan(room);
   }
   setLobbyTimer(room) {
     clearTimeout(room.lobbyTimer);
@@ -139,6 +139,33 @@ export class RoomManager extends EventEmitter {
       return;
     }
     const actor = room.game.phase === 'color' ? room.game.colorChoice.actor : room.game.turn;
+    // A hard computer can catch out of turn, including between two human moves
+    // or when an effect returns the move to its player. Use only public evidence.
+    if (room.game.options.difficulty === 'hard' && (room.seats[actor].human || actor === room.game.lastPlayer)) {
+      const catchKey = `${room.game.round}:${room.game.turns}:${room.game.lastPlayer}`;
+      const watcher = room.seats.find(seat => !seat.human && room.game.players[seat.id].alive && chooseBotOneChallenge(room.game, seat.id));
+      if (watcher && room.botCatchKey !== catchKey) {
+        room.schedule = setTimeout(() => {
+          room.schedule = null;
+          if (room.status !== 'playing' || room.paused) return;
+          if (catchKey !== `${room.game.round}:${room.game.turns}:${room.game.lastPlayer}`) { this.plan(room); return; }
+          room.botCatchKey = catchKey;
+          const command = chooseBotOneChallenge(room.game, watcher.id);
+          if (command && !room.seats[watcher.id].human) {
+            try { room.game = applyAction(room.game, watcher.id, command); assertIntegrity(room.game); }
+            catch (error) {
+              if (!(error instanceof RuleError)) {
+                room.paused = true; room.fault = 'The table paused because a move could not be resolved.';
+                this.emit('fault', { code: room.code, error, command });
+              }
+            }
+            this.changed(room);
+          }
+          this.plan(room);
+        }, Math.max(25, room.options.delay * 1000));
+        return;
+      }
+    }
     if (room.seats[actor].human) return;
     const key = `${room.game.round}:${room.game.turns}:${actor}:${room.game.phase}`;
     const freshTurn = key !== room.botTurnKey;

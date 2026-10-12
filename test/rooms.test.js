@@ -2,9 +2,48 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import { RoomManager } from '../app/rooms.js';
-import { assertIntegrity } from '../app/engine.js';
+import { assertIntegrity, buildDeck } from '../app/engine.js';
 
 const manager = t => { const value = new RoomManager({timers:false}); t.after(()=>value.close()); return value; };
+
+function missedCallTable(rooms, room, actor) {
+  const game=room.game,pool=buildDeck(true);
+  const take=(kind,color,value)=>{const index=pool.findIndex(card=>card.kind===kind&&card.color===color&&(value===undefined||card.value===value));return pool.splice(index,1)[0];};
+  game.players.forEach((player,id)=>{player.hand=id===actor?[take('number','red',3),take('number','blue',8)]:[take('number','green',id+1),take('number','yellow',id+1)];player.oneCalled=player.unoEligible=player.unoOffense=player.unoSafe=false;});
+  game.discard=[take('number','red',5)];game.activeColor='red';game.draw=pool;game.pending=[];game.drawn=null;
+  game.turn=actor;game.direction=actor===1?-1:1;game.lastPlayer=null;game.lastPlayerOneCalled=false;game.phase='turn';game.colorChoice=null;game.wildChallenge=null;
+  game.mayPass=false;game.events=[];game.eventSeq=0;game.turns=0;game.penaltyKind=null;game.penaltyActor=null;
+  assertIntegrity(game);rooms.timers=true;
+}
+
+test('hard computers catch both host and guest between human turns, exactly once', async t => {
+  for(const actor of [0,1]) {
+    const rooms=manager(t),host=rooms.create({name:'Host',humanCount:2,delay:0});
+    const guest=rooms.join(host.code,{name:'Guest'});rooms.hostAction(host.token,{type:'start'});
+    const room=rooms.getRoom(host.code);missedCallTable(rooms,room,actor);
+    const token=actor===0?host.token:guest.token;
+    rooms.action(token,{type:'play',cardId:room.game.players[actor].hand[0].id},'play',room.game.revision);
+    assert.equal(room.game.turn,1-actor);assert.equal(room.game.players[actor].hand.length,1);
+    await delay(80);
+    assert.equal(room.game.players[actor].hand.length,3);assert.equal(room.game.turn,1-actor);
+    const catches=room.game.events.filter(event=>event.type==='challenge');assert.equal(catches.length,1);assert.ok(catches[0].actor>=2);assert.equal(catches[0].target,actor);
+    await delay(40);assert.equal(room.game.players[actor].hand.length,3);assertIntegrity(room.game);
+  }
+});
+
+test('human-turn catches respect Pause, Stop, and the next accepted action deadline', async t => {
+  for(const boundary of ['pause','stop','draw']) {
+    const rooms=manager(t),host=rooms.create({name:'Host',humanCount:2,delay:0});
+    const guest=rooms.join(host.code,{name:'Guest'});rooms.hostAction(host.token,{type:'start'});
+    const room=rooms.getRoom(host.code);missedCallTable(rooms,room,1);
+    rooms.action(guest.token,{type:'play',cardId:room.game.players[1].hand[0].id},'play',room.game.revision);
+    if(boundary==='draw') rooms.action(host.token,{type:'draw'},'draw',room.game.revision);
+    else rooms.hostAction(host.token,{type:boundary});
+    await delay(65);assert.equal(room.game.players[1].hand.length,1);assert.equal(room.game.events.filter(event=>event.type==='challenge').length,0);
+    if(boundary==='pause') {rooms.hostAction(host.token,{type:'pause'});await delay(65);assert.equal(room.game.players[1].hand.length,3);}
+    assertIntegrity(room.game);
+  }
+});
 test('solo has four seats; zero-human host is a spectator with visible computer hands', t => {
   const rooms=manager(t);const solo=rooms.create({name:'Casey',humanCount:1});let view=rooms.view(solo.token);
   assert.equal(view.seats.length,4);assert.equal(view.humanSeats,1);assert.equal(view.game.hand.length,7);assert.ok(!('observerHands' in view.game));assert.ok(!('seed' in view.game));

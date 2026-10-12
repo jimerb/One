@@ -6,7 +6,7 @@ A modern, dark-mode card game for your browser. Play against computer opponents,
 
 ![Node.js 22 or newer](https://img.shields.io/badge/Node.js-22%2B-43853d?logo=node.js&logoColor=white)
 ![Default port 4444](https://img.shields.io/badge/port-4444-dbb878)
-![50 automated checks](https://img.shields.io/badge/checks-50%20passing-43853d)
+![59 automated checks](https://img.shields.io/badge/checks-59%20passing-43853d)
 
 ![One's dark-mode card table](docs/screenshots/desktop.jpg)
 
@@ -81,7 +81,7 @@ The standard deck has **108 cards**. Enabling Spy, Shark, and Mutant expands it 
 
 You may draw even when you can play. After drawing, play the new card, play another matching card from your hand, or **Keep & pass**. Draw penalties cannot be stacked.
 
-A missed One call can be caught before the next accepted draw, play, or pass. Calling too early can also be challenged. Only the player receiving a Wild Draw Four may challenge it: a successful challenge makes the offender draw four and lets the challenger keep the turn; failure costs six cards and a lost turn.
+A missed One call can be caught before the next accepted draw, play, or pass; a catch costs the offender two cards, once. Hard computers watch for visible missed calls even between two human turns. If nobody catches before the next accepted move, there is no penalty. Calling too early can also be challenged. Only the player receiving a Wild Draw Four may challenge it: a successful challenge makes the offender draw four and lets the challenger keep the turn; failure costs six cards and a lost turn.
 
 ### Choose your match
 
@@ -130,9 +130,9 @@ npm test
 npm run simulate -- 50
 ```
 
-The automated suite currently passes **50 checks**, covering special cards, challenges, scoring, hidden hands, fair computer decisions, lobby deadlines, disconnect recovery, pause/step/stop, HTTP endpoints, WebSocket authority, and independent decoding of the actual QR invitation.
+The automated suite currently passes **59 checks**, covering special cards, challenges, scoring, hidden hands, fair computer decisions, lobby deadlines, disconnect recovery, pause/step/stop, HTTP endpoints, WebSocket authority, and independent decoding of the actual QR invitation.
 
-The simulation command runs **300 full matches**: 50 seeds across three modes and two decks. The recorded validation run completed **214,682 actions**, with every match finished and card inventory checked throughout.
+The simulation command runs **300 full matches**: 50 seeds across three modes and two decks. The recorded validation run completed **214,435 actions**, with every match finished and card inventory checked throughout.
 
 Browser testing also exercised separate host and guest hands, named joining, a guest card play, drawing/keeping, reload recovery, synchronized controls, and a phone-sized layout. Physical phone cameras have not yet been tested.
 

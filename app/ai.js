@@ -15,6 +15,18 @@ function chooseColor(hand) {
 
 // This strategy uses its own hand and the same public information a human can see.
 // It never reads another hand, the stock, or Wild Draw Four adjudication flags.
+export function chooseBotOneChallenge(game, seat, context = {}) {
+  const view = projectGame(game, seat);
+  if (view.phase !== 'turn' || context.challengeTried || view.lastPlayer === null || view.lastPlayer === seat) return null;
+  const previous = view.players[view.lastPlayer];
+  if (!previous.alive || previous.hidden || previous.count !== 1 || view.lastPlayerOneCalled) return null;
+  // Hard opponents always notice a publicly visible missed call. Easier opponents
+  // can overlook it; no difficulty gets to inspect hidden hands or offense flags.
+  if (view.options.difficulty === 'hard' || chance(game, view.options.difficulty === 'medium' ? 70 : 40)) {
+    return { type: 'challengeOne', target: previous.id };
+  }
+  return null;
+}
 export function chooseBotAction(game, seat = game.turn, context = {}) {
   const view = projectGame(game, seat);
   const me = view.players[seat];
@@ -22,12 +34,8 @@ export function chooseBotAction(game, seat = game.turn, context = {}) {
   if (view.phase === 'color') return { type: 'color', color: chooseColor(view.hand) };
   if (view.phase !== 'turn') return null;
 
-  if (!context.challengeTried && view.lastPlayer !== null && view.lastPlayer !== seat) {
-    const previous = view.players[view.lastPlayer];
-    if (previous.alive && !previous.hidden && previous.count === 1 && !previous.oneCalled && chance(game, difficulty === 'hard' ? 95 : difficulty === 'medium' ? 70 : 40)) {
-      return { type: 'challengeOne', target: previous.id };
-    }
-  }
+  const catchOne = chooseBotOneChallenge(game, seat, context);
+  if (catchOne) return catchOne;
   if (view.pendingCount) {
     if (!context.challengeTried && view.wildChallenge?.recipient === seat) {
       const opponent = view.players[view.wildChallenge.actor];

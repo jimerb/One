@@ -16,7 +16,7 @@ Zero humans starts four computers. Follow the active hand or select a specific c
 
 Click a matching card to play it. You may draw even if you can play. A drawn card stays separate until played or kept; an existing matching hand card can still be played after drawing. Keep & pass adds the new card and ends your move. Draw Two, Wild Draw Four and Shark penalties cannot be stacked.
 
-Call ONE before playing down to one card. A missed call can be caught before the next accepted draw, play or pass. Early calls can also be challenged. Catch One controls do not reveal private adjudication flags; an unavailable challenge returns an explanation.
+Call ONE before playing down to one card. A catch makes the offender draw two, once. A missed call can be caught before the next accepted draw, play or pass; the penalty is not automatic when nobody catches it. Early calls can also be challenged. Catch One controls do not reveal private adjudication flags; an unavailable challenge returns an explanation.
 
 Wilds ask their player for a color. Only the recipient can challenge a Wild Draw Four, after the color choice. If its player still held the preceding color, the offender takes four and the challenger keeps the turn. Failure costs six and a lost turn. A terminal Wild skips the color prompt; terminal penalties settle before scoring.
 
@@ -32,9 +32,11 @@ The fresh engine follows recovered backend behavior. Cross-color Mutant-on-Mutan
 
 The default match is one round, no score target, hard computers and one-second thinking time. The CD factory defaults were unlimited rounds, 500 points and two-second delay. Advanced settings preserve the recovered zero-limit conversion: unlimited rounds plus zero points becomes 500; finite rounds permit no point target; Challenge always uses unlimited rounds and a positive target.
 
-Computers use their own hand and public information. They do not read opponents' cards, stock order or hidden Wild Draw Four truth. Hard play considers card value, remaining colors, opponents nearing the finish and team partners. Wild color favors the largest remaining color group. Medium and easy make less consistent choices and calls. This replaces the original AI's access to private challenge flags.
+Computers use their own hand and public information. They do not read opponents' cards, stock order or hidden Wild Draw Four truth. Hard play considers card value, remaining colors, opponents nearing the finish and team partners. Wild color favors the largest remaining color group. Medium and easy make less consistent choices and calls. This replaces the original AI's access to private challenge flags. Hard computers always attempt a visible missed-call catch, including out of turn between two humans; Medium and Easy retain probabilistic turn-start catches. Spy hides the count, so computers do not catch by inspecting that concealed hand. All-human tables rely on human Catch One actions.
 
 The engine uses seeded, injectable randomness for repeatable fixtures and Fisher–Yates shuffling. Whole-match seed sequences do not reproduce the original separate Java generators and repeated-swap shuffle. Human rooms receive a server-chosen seed which stays private. Public card fans cap counts at seven and show 7+ above that; Spy shows an eye. Human projections never include another hand, stock contents, seed, RNG state, challenge truth or other credentials.
+
+The last mover is recorded separately from seats traversed by Skip, Reverse and Shark. A self-returning turn preserves its missed-call window until the next accepted move, and remembers whether One was called before the preceding play. These are explicit modern corrections to the original cursor-based last-player tracking and move-start flag clearing, following the documented action-based deadline. Catch timers obey Pause and Stop and do not delay another player’s valid move.
 
 The server owns state and accepts moves serially. Repeated action identifiers are ignored; old revisions are rejected with a current view. Each seat has a random private credential stored on that device. Reload restores the same seat. Disconnected humans have 30 seconds to reconnect, then a computer continues the same hand. Returning with the credential restores human control. Host Pause/Stop/Restart affect the shared table; appearance/audio preferences stay per device.
 
@@ -42,7 +44,7 @@ Rooms are held in memory and expire after two hours without activity. Restart cl
 
 ## Verification
 
-`npm test` runs engine fixtures, fair-AI checks, private projections, timed controls, disconnect/reconnect, HTTP endpoints, WebSocket authority and independent decoding of the actual QR SVG. `npm run simulate -- 50` completes 300 computer matches across all modes and both decks, checking card inventory and turn legality throughout. The retained run completed 214,682 actions, all matches finished.
+`npm test` runs engine fixtures, fair-AI checks, private projections, timed controls, disconnect/reconnect, HTTP endpoints, WebSocket authority and independent decoding of the actual QR SVG. `npm run simulate -- 50` completes 300 computer matches across all modes and both decks, checking card inventory and turn legality throughout. The retained run completed 214,435 actions, all matches finished.
 
 Browser checks used separate localhost/LAN origins for host and guest credentials, a 390×844 phone viewport, named joining, separate hands, a guest card play, host drawing/keeping, reload restoration, synchronized pause/stop and computer-only Pause/Step/Stop. Physical phone cameras and tablets have not been tested. Retained views: [desktop](screenshots/desktop.jpg), [phone](screenshots/mobile.jpg), [computer observer](screenshots/computers.jpg). Run the commands above to reproduce the automated checks and match simulations.
 

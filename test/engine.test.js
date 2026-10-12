@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildDeck, cardPoints, createGame, applyAction, isPlayable, projectGame, drawCards, assertIntegrity, normalizeOptions, nextSeat } from '../app/engine.js';
-import { chooseBotAction } from '../app/ai.js';
+import { chooseBotAction, chooseBotOneChallenge } from '../app/ai.js';
 import { simulate } from '../tools/simulate-one.js';
 
 const n = (color, value) => ({ kind: 'number', color, value });
@@ -133,6 +133,79 @@ test('early calls can be caught; only accepted legal draw/play/pass expires a mi
   // The original wrong-call branch needs synthetic permission, as in the preserved backend probe.
   game=fixture();game.players[1].unoEligible=true;game.players[1].unoOffense=false;
   const wrong=applyAction(game,0,{type:'challengeOne',target:1});assert.equal(wrong.players[0].hand.length,4);assert.equal(wrong.turn,0);
+});
+
+test('every playable card effect tracks the actual missed caller, not skipped seats', () => {
+  for (const face of [n('red',3), ...['skip','reverse','draw2','spy','shark','mutant'].map(kind=>special(kind,'red')), special('wild'), special('wild4')]) {
+    let game=fixture({hands:[[face,n('blue',8)],[n('blue',4)],[n('green',6)],[n('yellow',7)]],stock:face.kind==='mutant'?[special('skip','red')]:[]});
+    game.randomValues=[1,0]; // Shark misses seat 1 and bites seat 2.
+    game=play(game);
+    if(game.phase==='color') {
+      rejectUnchanged(game,2,{type:'challengeOne',target:0},/Wait/u);
+      game=applyAction(game,0,{type:'color',color:'blue'});
+    }
+    assert.equal(game.lastPlayer,0,face.kind);
+    assert.deepEqual(chooseBotOneChallenge(game,3),{type:'challengeOne',target:0},face.kind);
+    game=applyAction(game,3,{type:'challengeOne',target:0});
+    assert.equal(game.players[0].hand.length,3,face.kind);assertIntegrity(game);
+    rejectUnchanged(game,2,{type:'challengeOne',target:0},/already been resolved/u);
+  }
+});
+
+test('Skip and Reverse with two survivors keep a catch open even when the actor plays again', () => {
+  for(const kind of ['skip','reverse']) {
+    let game=fixture({hands:[[special(kind,'red'),n('blue',8)],[n('green',6)],[],[]],alive:[true,true,false,false]});
+    game=play(game);assert.equal(game.turn,0);assert.ok(game.players[0].unoEligible);
+    // A call during the new turn cannot erase the preceding move's missed call.
+    game=applyAction(game,0,{type:'one'});
+    assert.deepEqual(chooseBotOneChallenge(game,1),{type:'challengeOne',target:0});
+    game=applyAction(game,1,{type:'challengeOne',target:0});assert.equal(game.players[0].hand.length,3);assertIntegrity(game);
+  }
+});
+
+test('accepted special plays close the preceding call, even when they skip that player', () => {
+  let game=fixture({hands:[[n('red',3),n('blue',8)],[special('skip','red'),n('green',4)],[n('green',6)],[n('yellow',7)]]});
+  game=play(game);game=play(game,1);
+  rejectUnchanged(game,3,{type:'challengeOne',target:0},/cannot be challenged/u);
+  assert.equal(game.lastPlayer,1);assert.deepEqual(chooseBotOneChallenge(game,3),{type:'challengeOne',target:1});
+});
+
+test('a self-biting Shark preserves the missed call until its player accepts the penalty', () => {
+  let game=fixture({hands:[[special('shark','red'),n('blue',8)],[n('blue',4)],[n('green',6)],[n('yellow',7)]]});
+  game.randomValues=[1,1,1,0];game=play(game);
+  assert.equal(game.turn,0);assert.equal(game.lastPlayer,0);assert.equal(game.pending.length,4);
+  const caught=applyAction(game,2,{type:'challengeOne',target:0});assert.equal(caught.players[0].hand.length,3);assert.equal(caught.pending.length,4);assertIntegrity(caught);
+  game=applyAction(game,0,{type:'pass'});assert.equal(game.players[0].hand.length,5);
+  rejectUnchanged(game,2,{type:'challengeOne',target:0},/cannot be challenged/u);
+});
+
+test('a valid One call remains safe through each special effect and its color choice', () => {
+  for(const face of [special('skip','red'),special('reverse','red'),special('shark','red'),special('mutant','red'),special('wild'),special('wild4')]) {
+    let game=fixture({hands:[[face,n('blue',8)],[n('blue',4)],[n('green',6)],[n('yellow',7)]],stock:face.kind==='mutant'?[special('skip','red')]:[]});
+    game.randomValues=[1,0];game=applyAction(game,0,{type:'one'});game=play(game);
+    if(game.phase==='color') game=applyAction(game,0,{type:'color',color:'blue'});
+    assert.equal(chooseBotOneChallenge(game,3),null);rejectUnchanged(game,3,{type:'challengeOne',target:0},/cannot be challenged/u);assertIntegrity(game);
+  }
+});
+
+test('hard catches are reliable without exposing Spy counts or private challenge truth', () => {
+  let game=play(fixture());
+  for(let roll=0;roll<100;roll++) {game.randomValues=[roll];assert.deepEqual(chooseBotAction(game,1),{type:'challengeOne',target:0});}
+  game.players[0].unoEligible=false;game.players[0].unoOffense=false;
+  assert.deepEqual(chooseBotOneChallenge(game,1),{type:'challengeOne',target:0}); // decision still uses public facts only
+  let hidden=play(fixture({hands:[[n('red',3),special('spy','blue')],[n('blue',4)],[n('green',6)],[n('yellow',7)]]}));
+  assert.equal(chooseBotOneChallenge(hidden,1),null);
+  let called=applyAction(fixture(),0,{type:'one'});called=play(called);
+  assert.equal(chooseBotOneChallenge(called,1),null);
+  game=applyAction(game,1,{type:'draw'});assert.equal(chooseBotOneChallenge(game,2),null);
+});
+
+test('drawing and transit are counted before deciding whether a One call is valid', () => {
+  let game=fixture({hands:[[n('red',3)],[n('blue',4)],[n('green',6)],[n('yellow',7)]],stock:[n('red',8)]});
+  game=applyAction(game,0,{type:'draw'});game=play(game,0,game.drawn);
+  assert.ok(game.players[0].unoEligible);game=applyAction(game,2,{type:'challengeOne',target:0});assert.equal(game.players[0].hand.length,3);
+  game=fixture({stock:[n('red',8)]});game=applyAction(game,0,{type:'draw'});game=applyAction(game,0,{type:'one'});
+  assert.equal(game.players[0].oneCalled,false);assert.ok(game.players[0].unoOffense); // two held plus transit is three
 });
 
 test('illegal Wild Draw Four is challengeable only by its recipient after color choice', () => {
