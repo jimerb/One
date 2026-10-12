@@ -1,0 +1,27 @@
+{
+  "name": "one-card-table",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "One: a modern four-seat card table based on the recovered Uno CD rules.",
+  "scripts": {
+    "start": "node app/server.js",
+    "test": "node --test test/*.test.js",
+    "simulate": "node tools/simulate-one.js"
+  },
+  "dependencies": {
+    "qrcode": "1.5.4",
+    "ws": "8.18.3"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "jsqr": "^1.4.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jimerb/One.git"
+  },
+  "homepage": "https://github.com/jimerb/One#readme"
+}
