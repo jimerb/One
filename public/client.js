@@ -1,3 +1,4 @@
+import { motionEnabled, tableAnchor, latestLivePlay } from './table-effects.js';
 const app = document.querySelector('#app');
 const COLORS = { red: '#df5861', blue: '#3688b1', green: '#368b70', yellow: '#e9b73e' };
 const AVATARS = ['#e7bd82', '#bccdae', '#b3cbd1', '#d9b8aa'];
@@ -23,6 +24,8 @@ const icon = name => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">$
 const readStored = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
 let prefs = { theme: 'tabletop', effects: false, music: false, volume: 35, reducedMotion: false, contrast: false, ...readStored('one.preferences', {}) };
 let draft = { name: localStorage.getItem('one.name') || '', humanCount: 1, mode: 'original', specialCards: true, difficulty: 'hard', delay: 1, roundLimit: 1, scoreLimit: 0, lobbySeconds: 60, ...readStored('one.setup', {}) };
+let skipPresentation = true, activeFlight = null, lastFlightAt = 0;
+const systemMotion = matchMedia('(prefers-reduced-motion: reduce)');
 let room = null, credentials = null, socket = null, connected = false, reconnectTimer = null, retry = 0;
 let joinCode = location.pathname.match(/^\/r\/([A-Z0-9]{6})$/iu)?.[1].toUpperCase() ?? null;
 let lobby = null, inviteBase = location.origin, selectedCard = null, watchSeat = 'auto', lastEvent = 0, busy = false;
@@ -30,7 +33,8 @@ let formError = '', modal = null, autoPaused = false, serverOffset = 0, toastTim
 const savePrefs = () => { localStorage.setItem('one.preferences', JSON.stringify(prefs)); applyPreferences(); };
 function applyPreferences() {
   document.body.dataset.theme = prefs.theme;
-  document.body.classList.toggle('reduced-motion', prefs.reducedMotion);
+  document.body.classList.toggle('reduced-motion', !motionEnabled(prefs, systemMotion.matches));
+  if (!motionEnabled(prefs, systemMotion.matches)) cancelFlight();
   document.body.classList.toggle('high-contrast', prefs.contrast);
 }
 function toast(message) {
@@ -39,10 +43,26 @@ function toast(message) {
 }
 
 const audio = {
-  context: null, musicTimer: null, melodyIndex: 0,
-  init() { try { this.context ??= new AudioContext(); this.context.resume(); } catch {} },
+  context: null, musicTimer: null, melodyIndex: 0, slideURL: null, slideBuffer: null, slideLoad: null, lastSlideAt: -1,
+  init() { try { this.context ??= new AudioContext(); this.context.resume().catch(()=>{}); this.loadSlide(); } catch {} },
+  loadSlide() {
+    if(!this.context || !this.slideURL || this.slideLoad)return;
+    this.slideLoad=fetch(this.slideURL).then(response=>{if(!response.ok)throw Error('No local sample');return response.arrayBuffer();}).then(data=>this.context.decodeAudioData(data)).then(buffer=>{this.slideBuffer=buffer;}).catch(()=>{});
+  },
+  slide() {
+    if(!prefs.effects||prefs.volume<=0)return;this.init();const context=this.context;if(!context||context.state!=='running')return;
+    const at=context.currentTime;if(at-this.lastSlideAt<.075)return;this.lastSlideAt=at;
+    const gain=context.createGain();gain.connect(context.destination);
+    if(this.slideBuffer){const source=context.createBufferSource();source.buffer=this.slideBuffer;gain.gain.value=.8*prefs.volume/100;source.connect(gain);source.start(at);source.onended=()=>{source.disconnect();gain.disconnect();};return;}
+    const duration=.28,buffer=context.createBuffer(1,Math.ceil(context.sampleRate*duration),context.sampleRate),samples=buffer.getChannelData(0);
+    for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;
+    const source=context.createBufferSource(),filter=context.createBiquadFilter();source.buffer=buffer;filter.type='bandpass';filter.Q.value=.65;
+    filter.frequency.setValueAtTime(2200,at);filter.frequency.exponentialRampToValueAtTime(900,at+duration);
+    gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(Math.max(.0001,.15*prefs.volume/100),at+.035);gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+    source.connect(filter);filter.connect(gain);source.start(at);source.onended=()=>{source.disconnect();filter.disconnect();gain.disconnect();};
+  },
   note(frequency, duration = .09, delay = 0, level = .08, type = 'sine') {
-    if (!this.context) return;
+    if (!this.context || this.context.state !== 'running' || prefs.volume<=0) return;
     const osc = this.context.createOscillator(), gain = this.context.createGain();
     osc.type = type; osc.frequency.value = frequency; const at = this.context.currentTime + delay;
     gain.gain.setValueAtTime(0, at); gain.gain.linearRampToValueAtTime(level * prefs.volume / 100, at + .015);
@@ -53,7 +73,7 @@ const audio = {
     if (type === 'one') { this.note(523,.14); this.note(659,.14,.12); this.note(784,.2,.24); }
     else if (['match-end','round-end'].includes(type)) { [523,659,784,1046].forEach((n,i) => this.note(n,.25,i*.12)); }
     else if (type === 'shark' || type === 'challenge') { this.note(180,.15,0,.11,'triangle'); this.note(240,.15,.1,.07,'triangle'); }
-    else if (type === 'play' || type === 'draw') this.note(type === 'play' ? 340 : 260,.045,0,.06,'triangle');
+    else if (type === 'play' || type === 'draw') this.slide();
   },
   updateMusic() {
     clearInterval(this.musicTimer); this.musicTimer = null;
@@ -63,6 +83,9 @@ const audio = {
     play(); this.musicTimer = setInterval(play,1700);
   }
 };
+const unlockAudio=()=>{if(prefs.effects||prefs.music)audio.init();};
+document.addEventListener('pointerdown',unlockAudio,{passive:true});
+document.addEventListener('keydown',unlockAudio);
 
 function cardHTML(card, back = false) {
   if (back) return '<div class="card card-back"><div class="card-inner"><div class="card-oval"></div><div class="back-word">one</div><div class="back-small">CARD TABLE</div></div></div>';
@@ -77,6 +100,44 @@ const demoHand = [
   { id:'demo3', kind:'skip', color:'yellow' }, { id:'demo4', kind:'wild', color:null },
   { id:'demo5', kind:'number', color:'green', value:2 }, { id:'demo6', kind:'shark', color:'blue' }, { id:'demo7', kind:'number', color:'yellow', value:9 }
 ];
+const actorSeat = game => game.phase === 'color' ? game.colorActor : game.turn;
+function cancelFlight() {
+  const flight=activeFlight;activeFlight=null;
+  if(flight){flight.animation?.cancel();flight.nodes.forEach(node=>node.remove());}
+  document.body.classList.remove('card-in-flight');
+}
+function playOrigin(play, previous) {
+  const self=tableAnchor(previous.game,previous.desiredHumans===0);
+  const source=play.actor===self
+    ? document.querySelector(`[data-card="${CSS.escape(play.card.id)}"]`)??document.querySelector('.drawn-panel .small-card')??document.querySelector('.hand-area')
+    : document.querySelector(`.opponent[data-seat="${play.actor}"] .mini-fan`);
+  if(!source)return null;
+  const rect=source.getBoundingClientRect();
+  return {x:rect.left+rect.width/2,y:rect.top+rect.height/2,scale:play.actor === self ? .85 : .46};
+}
+function slideCard(play, origin, previousDiscard) {
+  const now=performance.now(),rapid=now-lastFlightAt<180;lastFlightAt=now;
+  cancelFlight();audio.slide();
+  if(!origin||rapid||!motionEnabled(prefs,systemMotion.matches)||modal)return;
+  const pile=document.querySelector('.pile.discard');if(!pile||typeof pile.animate!=='function')return;
+  const rect=pile.getBoundingClientRect(),x=rect.left+rect.width/2,y=rect.top+rect.height/2;
+  const create=(card,extra)=>{const node=document.createElement('div');node.className=`card-flight ${extra}`;node.setAttribute('aria-hidden','true');node.style.cssText=`left:${x-rect.width/2}px;top:${y-rect.height/2}px;width:${rect.width}px;height:${rect.height}px;`;node.innerHTML=cardHTML(card);document.body.append(node);return node;};
+  const old=previousDiscard?create(previousDiscard,'old-discard'):null,flying=create(play.card,'moving-card');
+  document.body.classList.add('card-in-flight');
+  const dx=origin.x-x,dy=origin.y-y;
+  const animation=flying.animate([
+    {transform:`translate3d(${dx}px,${dy}px,0) rotate(-9deg) scale(${origin.scale})`,opacity:.96},
+    {transform:`translate3d(${dx*.25}px,${dy*.25}px,0) rotate(3deg) scale(.96)`,opacity:1,offset:.72},
+    {transform:'translate3d(0,0,0) rotate(7deg) scale(1)',opacity:1}
+  ],{duration:420,easing:'cubic-bezier(.2,.65,.3,1)',fill:'forwards'});
+  const flight={animation,nodes:[old,flying].filter(Boolean)};activeFlight=flight;
+  const finish=()=>{flight.nodes.forEach(node=>node.remove());if(activeFlight===flight){activeFlight=null;document.body.classList.remove('card-in-flight');}};
+  animation.onfinish=finish;animation.oncancel=finish;
+}
+systemMotion.addEventListener('change',applyPreferences);
+window.addEventListener('resize',cancelFlight);
+window.addEventListener('scroll',cancelFlight,{passive:true});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelFlight();});
 function miniFan(player) {
   const count = player.hidden ? 5 : Math.min(7, player.count ?? 5);
   const cards = Array.from({ length: count }, (_, index) => `<div class="mini-card" style="transform:translateX(${(index - (count-1)/2)*10}px) rotate(${(index-(count-1)/2)*9}deg)"><span>one</span></div>`).join('');
@@ -90,9 +151,12 @@ function tableHTML() {
   const players = game?.players ?? (lobby || room)?.seats?.map(seat => ({ ...seat, score:0, count:7, alive:true })) ?? [
     { id:0, name:draft.name || 'You', human:true, count:7, score:0, alive:true }, ...['Maya','Jules','Theo'].map((name,index) => ({ id:index+1, name, human:false, count:7, score:0, alive:true }))
   ];
-  const others = [1,2,3].map(offset => players[(viewer + offset) % 4]);
+  const anchor = tableAnchor(game, observer);
+  const others = [1,2,3].map(offset => players[(anchor + offset) % 4]);
   const hand = observer ? game?.observerHands?.[viewer] ?? [] : game?.hand ?? demoHand;
   const own = players[viewer];
+  const playing = !!game && room.status === 'playing' && ['turn','color'].includes(game.phase);
+  const ownTurn = playing && actorSeat(game) === anchor;
   const actor = game ? players[game.phase === 'color' ? game.colorActor : game.turn] : null;
   const top = game?.discard ?? { kind:'number', color:'red', value:8 };
   const myTurn = !!game && game.viewer === game.turn && game.phase === 'turn' && room.status === 'playing' && !room.paused && connected;
@@ -101,18 +165,18 @@ function tableHTML() {
   const oneNeeded = myTurn && hand.length + (game.drawn ? 1 : 0) <= 2 && !own.oneCalled;
   let message = demo ? 'Match a color, a number, or a symbol.' : room.status === 'stopped' ? 'This table is stopped. Start a fresh game when you’re ready.' : room.paused ? 'Take your time. The table is paused.' : game.phase === 'matchOver' ? `${game.winners.map(id => players[id].name).join(' & ')} won the match.` : game.phase === 'roundOver' ? `${players[game.result.winner].name} won this round.` : game.phase === 'color' ? `${actor.name} is choosing the next color.` : observer ? `${actor.name} is thinking…` : myTurn ? game.pendingCount ? `Pick up ${game.pendingCount}${game.wildChallenge ? ' — or challenge the Wild Draw Four.' : ' and pass.'}` : game.drawn ? 'Play the drawn card, play a matching hand card, or keep it.' : 'Your turn. Click a matching card, or draw.' : `${actor.name}’s turn. Your cards are ready.`;
   if (invitation) message = 'A few friends. A few computers. One good table.';
-  return `<section class="table-shell" aria-label="One card table">
+  return `<section class="table-shell ${game?'live-table':''} ${room?.paused?'paused':''} ${ownTurn?'own-turn':''}" aria-label="One card table">
     <div class="table-meta"><span>${icon('users')} FOUR SEATS</span><span>${demo ? 'PULL UP A CHAIR' : observer ? 'COMPUTER TABLE' : esc(titleCase(game?.options.mode ?? 'original'))}${game ? ` · ROUND ${game.round}` : ''}</span></div>
     <div class="wood-table"></div><div class="center-brand">one more round</div>
-    <div class="opponent-row">${others.map(player => `<div class="opponent ${game?.turn === player.id && ['turn','color'].includes(game.phase) ? 'active' : ''} ${!player.alive ? 'eliminated' : ''}">
-      <div class="player-pill"><div class="avatar" style="--avatar:${AVATARS[player.id]}">${esc([...player.name][0]?.toUpperCase() ?? '?')}</div><div><div class="player-name">${esc(player.name)}</div><div class="player-caption">${player.human ? icon('users') : ''}${player.human ? 'At the table' : invitation ? 'Computer seat' : 'Computer'}${game?.options.mode === 'team' ? ` · ${player.team === 0 ? 'Red' : 'Blue'}` : ''}</div></div><span class="player-score">${player.score ?? 0}</span>${player.oneCalled ? '<span class="one-tag">ONE!</span>' : ''}</div>
+    <div class="opponent-row">${others.map(player => `<div data-seat="${player.id}" class="opponent ${playing && game?.turn === player.id && ['turn','color'].includes(game.phase) ? 'active' : ''} ${!player.alive ? 'eliminated' : ''}">
+      <div class="player-pill"><div class="avatar" style="--avatar:${AVATARS[player.id]}">${esc([...player.name][0]?.toUpperCase() ?? '?')}</div><div><div class="player-name">${esc(player.name)}</div><div class="player-caption">${player.human ? icon('users') : ''}${player.human ? 'At the table' : invitation ? 'Computer seat' : 'Computer'}${game?.options.mode === 'team' ? ` · ${player.team === 0 ? 'Red' : 'Blue'}` : ''}</div></div><span class="player-score">${player.score ?? 0}</span>${playing&&game.turn===player.id?'<span class="turn-marker" aria-hidden="true">'+icon('play')+'</span>':''}${player.oneCalled ? '<span class="one-tag">ONE!</span>' : ''}</div>
       ${miniFan(player)}${canCatch ? `<button class="catch-button" data-action="catch" data-target="${player.id}" aria-label="Challenge ${esc(player.name)} for a missed One call">Catch One</button>` : ''}</div>`).join('')}</div>
     <div class="piles"><div class="pile-group"><button class="pile draw" data-action="draw" aria-label="Draw a card" ${!myTurn || !game?.canDraw ? 'disabled' : ''}>${cardHTML(null,true)}</button><div class="pile-label">DRAW ${game ? `<b>${game.drawCount}</b>` : ''}</div></div>
       <div class="pile-group"><div class="pile discard" role="img" aria-label="Discard: ${esc(labelCard(top))}">${cardHTML(top)}</div><div class="pile-label">DISCARD</div></div></div>
-    <div class="direction-indicator">${icon('reverse')} ${game?.direction === -1 ? 'Counterclockwise' : 'Clockwise'} <span class="active-suit" style="--suit:${COLORS[game?.activeColor ?? 'red'] ?? '#fff'}"></span> ${game?.activeColor ? titleCase(game.activeColor) : demo ? 'Red' : 'Choose a color'}</div>
+    <div class="direction-indicator" aria-label="Current color: ${game?.activeColor??(demo?'red':'choose a color')}"><span class="color-badge ${game?.activeColor??(demo?'red':'choosing')}" style="--suit:${COLORS[game?.activeColor??'red']??'#536859'}"><span class="color-swatch" aria-hidden="true"></span><span>${game?.activeColor?titleCase(game.activeColor):demo?'Red':'Choose color'}</span></span><span class="direction-caption">${icon('reverse')} ${game?.direction===-1?'Counterclockwise':'Clockwise'}</span></div>
     <div class="table-message">${esc(message)}</div>
     <button class="one-button ${oneNeeded ? 'needed' : ''}" data-action="one" aria-label="Call One before playing your second-to-last card" ${!myTurn || !game?.canCallOne ? 'disabled' : ''}>ONE!</button><span class="one-caption">${own?.oneCalled ? 'YOU CALLED IT' : 'CALL BEFORE YOU PLAY'}</span>
-    <div class="hand-area"><div class="hand-label"><span>${observer ? `${esc(own?.name)}’s hand` : game ? 'Your hand' : 'Your next good hand'}${game ? ` · ${hand.length} cards` : ''}</span><span>${observer ? 'WATCHING' : demo ? 'THE TABLE IS READY' : myTurn ? 'YOUR TURN' : 'PLAN YOUR NEXT MOVE'}</span></div>
+    <div class="hand-area ${ownTurn?'active':''}" data-seat="${anchor}"><div class="hand-label"><span>${observer ? `${esc(own?.name)}’s hand` : game ? 'Your hand' : 'Your next good hand'}${game ? ` · ${hand.length} cards` : ''}</span><span class="hand-turn-badge ${ownTurn?'on':''}">${ownTurn?icon('play'):''}${observer ? ownTurn?`${esc(players[anchor].name)}’S TURN`:'WATCHING' : demo ? 'THE TABLE IS READY' : ownTurn ? 'YOUR TURN' : 'PLAN YOUR NEXT MOVE'}</span></div>
       <div class="hand-rail ${hand.length > 9 ? 'many' : ''}" tabindex="-1" aria-label="${observer ? 'Observed computer hand' : 'Your cards'}">${hand.map((card,index) => {
         const mid = (Math.min(hand.length,9)-1)/2;
         const playable = game?.legalCardIds.includes(card.id);
@@ -156,6 +220,7 @@ function resultsHTML(game) {
 }
 function gameHTML() {
   const game = room.game, observer = room.desiredHumans === 0;
+  const myColor=game.phase==='color'&&game.colorActor===game.viewer;
   const myTurn = game.viewer === game.turn && game.phase === 'turn' && connected && !room.paused && room.status==='playing';
   const actor = game.players[game.phase==='color'?game.colorActor:game.turn];
   const current = game.players[game.viewer];
@@ -164,7 +229,7 @@ function gameHTML() {
   if (room.status==='stopped') content=`<div class="eyebrow">${icon('stop')} TABLE STOPPED</div><h2>That was a good<br>place to pause.</h2><p>The computers have stopped. Your last table stays here for a look.</p>${room.host?'<button class="primary" data-action="restart">Deal a fresh game '+icon('shuffle')+'</button>':''}`;
   else if (ended) content = resultsHTML(game);
   else {
-    content = `<div class="eyebrow">${icon(observer?'play':'leaf')} ${observer?'FOUR COMPUTERS, ONE TABLE':myTurn?'YOUR MOVE':'A GOOD ROUND IN PROGRESS'}</div><h2>${observer?'Watch the table.':myTurn?'Make your move.':'One more turn.'}</h2><div class="turn-summary ${myTurn?'yours':''}"><div class="turn-name">${room.paused?'The table is paused':game.phase==='color'?`${esc(actor.name)} chooses a color`:myTurn?'You’re up.':`${esc(actor.name)}’s turn`}</div><div class="turn-hint">${myTurn?game.pendingCount?`Pick up ${game.pendingCount} cards and pass${game.wildChallenge?' — or challenge the Wild Draw Four':''}.`:game.drawn?'The new card is below. Your original hand can still be played.':'Match the color, number, or symbol. Call One before you play down to one card.':observer?'Every computer uses its own cards and public information.':current?.alive===false?'You’re out of this Challenge match, but you can watch the final hands.':'You can plan your next card while the table plays.'}</div></div>`;
+    content = `<div class="eyebrow">${icon(observer?'play':'leaf')} ${observer?'FOUR COMPUTERS, ONE TABLE':myTurn?'YOUR MOVE':'A GOOD ROUND IN PROGRESS'}</div><h2>${observer?'Watch the table.':myColor?'Choose a color.':myTurn?'Make your move.':'One more turn.'}</h2><div class="turn-summary ${myTurn?'yours':''}"><div class="turn-name">${room.paused?'The table is paused':game.phase==='color'?`${esc(actor.name)} chooses a color`:myTurn?'You’re up.':`${esc(actor.name)}’s turn`}</div><div class="turn-hint">${myColor?'Choose the next color using the buttons below.':myTurn?game.pendingCount?`Pick up ${game.pendingCount} cards and pass${game.wildChallenge?' — or challenge the Wild Draw Four':''}.`:game.drawn?'The new card is below. Your original hand can still be played.':'Match the color, number, or symbol. Call One before you play down to one card.':observer?'Every computer uses its own cards and public information.':current?.alive===false?'You’re out of this Challenge match, but you can watch the final hands.':'You can plan your next card while the table plays.'}</div></div>`;
     if (game.phase==='color' && game.colorActor===game.viewer) content += `<div class="color-prompt" aria-label="Choose the next color">${Object.entries(COLORS).map(([color,value])=>`<button class="color-button" data-action="color" data-color="${color}" style="--suit:${value}" ${room.paused?'disabled':''}><i></i>${titleCase(color)}</button>`).join('')}</div>`;
     else if (myTurn && game.drawn) content += `<div class="drawn-panel"><p>You drew ${esc(labelCard(game.drawn))}.</p><div class="drawn-card-row"><div class="small-card">${cardHTML(game.drawn)}</div><div class="drawn-options"><button class="primary" data-action="playDrawn" ${game.legalCardIds.includes(game.drawn.id)?'':'disabled'}>Play card</button><button class="secondary" data-action="pass">Keep & pass</button></div></div></div>`;
     else if (myTurn) content += `<div class="game-action-row"><button class="primary" data-action="${game.pendingCount||game.canPass?'pass':'draw'}" ${game.pendingCount||game.canPass||game.canDraw?'':'disabled'}>${game.pendingCount?`Draw ${game.pendingCount} & pass`:game.canPass?'Pass turn':'Draw a card'} ${icon('arrow')}</button></div>`;
@@ -194,6 +259,7 @@ function renderModal() {
   document.body.append(backdrop); backdrop.querySelector('.close').focus();
 }
 function openModal(which) {
+  cancelFlight();
   modal=which; autoPaused=!!room?.host && room.desiredHumans<=1 && room.status==='playing' && !room.paused && room.game?.phase!=='matchOver';
   if(autoPaused)host('pause'); renderModal();
 }
@@ -211,7 +277,7 @@ async function api(path, data, authorization) {
 }
 function saveSession(value) { const sessions=readStored('one.sessions',{});sessions[value.code]=value;localStorage.setItem('one.sessions',JSON.stringify(sessions));localStorage.setItem('one.current',value.code); }
 function connect(value) {
-  credentials=value;saveSession(value);abandoned=false;clearTimeout(reconnectTimer);socket?.close();
+  skipPresentation=true;cancelFlight();credentials=value;saveSession(value);abandoned=false;clearTimeout(reconnectTimer);socket?.close();
   const client=new WebSocket(`${location.protocol==='https:'?'wss:':'ws:'}//${location.host}/ws?token=${encodeURIComponent(value.token)}`);socket=client;
   client.addEventListener('open',()=>{if(socket!==client)return;connected=true;retry=0;render();});
   client.addEventListener('message',event=>{
@@ -219,20 +285,22 @@ function connect(value) {
     const message=JSON.parse(event.data);
     if(message.type==='error'){toast(message.message);return;}
     if(message.type!=='state')return;
-    const previous=room;room=message.state;serverOffset=room.serverTime-Date.now();
+    if(message.state.status==='stopped'||message.state.paused&&!room?.paused)cancelFlight();
+    const previous=room;const play=latestLivePlay(previous,message.state,{reconnecting:skipPresentation,hidden:document.hidden});
+    const origin=play?playOrigin(play,previous):null;room=message.state;serverOffset=room.serverTime-Date.now();
     if(room.game){
       const latestEvent=room.game.events.at(-1)?.id??0;if(latestEvent<lastEvent)lastEvent=0;
       const events=room.game.events.filter(item=>item.id>lastEvent);lastEvent=latestEvent;
-      if(previous?.game)for(const item of events)audio.effect(item.type);
+      if(previous?.game&&!skipPresentation&&!document.hidden)for(const item of events)if(item.type!=='play')audio.effect(item.type);
       if(events.length)document.querySelector('#announcer').textContent=events.at(-1).text;
       if(room.game.drawn && previous?.game?.drawn?.id !== room.game.drawn.id) selectedCard=room.game.drawn.id;
       if(selectedCard&&!room.game.hand.some(card=>card.id===selectedCard)&&room.game.drawn?.id!==selectedCard)selectedCard=null;
       if(!selectedCard)selectedCard=room.game.legalCardIds[0]??room.game.hand[0]?.id??null;
     }
-    render();if(previous?.paused!==room.paused||previous?.status!==room.status)audio.updateMusic();
+    render();if(play)slideCard(play,origin,previous.game.discard);skipPresentation=false;if(previous?.paused!==room.paused||previous?.status!==room.status)audio.updateMusic();
   });
   client.addEventListener('close',async()=>{
-    if(socket!==client||abandoned)return;connected=false;render();clearTimeout(reconnectTimer);
+    if(socket!==client||abandoned)return;connected=false;cancelFlight();render();clearTimeout(reconnectTimer);
     try {
       const response=await fetch('/api/session',{headers:{Authorization:`Bearer ${value.token}`}});
       if(socket!==client||abandoned)return;
@@ -249,6 +317,7 @@ function send(message) { if(socket?.readyState!==WebSocket.OPEN){toast('Reconnec
 function action(type, details={}) { if(!room?.game||room.paused){toast('The table is paused.');return;}send({type:'action',action:{type,...details},revision:room.game.revision,requestId:crypto.randomUUID?.()??`${Date.now()}-${Math.random()}`}); }
 function host(type,details={}) { send({type:'host',action:{type,...details}}); }
 function goHome() {
+  cancelFlight();
   if(room?.host&&room.status!=='stopped')host('stop');
   abandoned=true;clearTimeout(reconnectTimer);socket?.close();socket=null;connected=false;room=null;credentials=null;joinCode=null;lobby=null;lastEvent=0;formError='';localStorage.removeItem('one.current');history.pushState({},'', '/');document.querySelector('#announcer').textContent='';audio.updateMusic();render();
 }
@@ -323,7 +392,7 @@ setInterval(updateCountdown,500);
 
 async function init() {
   applyPreferences();render();
-  try{const config=await api('/api/config');inviteBase=config.inviteBase;}catch{}
+  try{const config=await api('/api/config');inviteBase=config.inviteBase;audio.slideURL=config.cardSlideAudio;audio.loadSlide();}catch{}
   const saved=readStored('one.sessions',{});
   const code=joinCode??localStorage.getItem('one.current');
   if(code&&saved[code]){

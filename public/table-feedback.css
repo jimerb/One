@@ -1,0 +1,40 @@
+/* Turn and color feedback stays on the table, independent of game timing. */
+.opponent.active .player-pill{background:#455135;border:2px solid #f4d18a;box-shadow:0 0 0 4px #edc48430,0 0 27px #f1ca7860,0 5px 12px #081c1a80}
+.opponent.active .avatar{background:#f4d18a;border-color:#fff4ce;box-shadow:0 0 12px #f6d39055}
+.turn-marker{position:absolute;right:-10px;bottom:-9px;width:24px;height:24px;background:#f5cf85;border:2px solid #fff0c3;border-radius:50%;color:#263c2e;display:grid;place-items:center;box-shadow:0 0 12px #f5cf8555}
+.turn-marker .icon{width:12px;height:12px;fill:currentColor;stroke-width:0}
+.opponent.active .player-pill,.hand-area.active{animation:turn-glow 2.6s ease-in-out infinite}
+@keyframes turn-glow{50%{box-shadow:0 0 0 4px #edc48442,0 0 30px #f1ca7885,0 5px 12px #081c1a50}}
+.hand-area{height:196px;border-radius:15px}
+.hand-area.active{background:linear-gradient(180deg,#ffecb930,#fff3c608);outline:2px solid #ffdf95;box-shadow:0 0 0 4px #edc48430,0 0 23px #f1ca7865}
+.hand-label{min-height:16px;line-height:16px}
+.hand-turn-badge{white-space:nowrap}
+.hand-turn-badge.on{display:inline-flex;gap:5px;align-items:center;background:#f6d08a;color:#20362b!important;opacity:1!important;border-radius:8px;font-size:10px!important;font-weight:800;letter-spacing:.7px;padding:0 6px;box-shadow:0 2px 6px #66502c30}
+.hand-turn-badge .icon{width:10px;height:10px;fill:currentColor;stroke-width:0}
+.direction-indicator{gap:12px;z-index:5;white-space:nowrap}
+.color-badge{display:inline-flex;align-items:center;gap:8px;min-width:110px;justify-content:center;padding:6px 12px;background:var(--suit);color:#fff;border:2px solid #fff2d5;border-radius:12px;font-size:14px;line-height:16px;font-weight:800;box-shadow:0 3px 8px #47352350;letter-spacing:.6px}
+.color-badge.yellow{color:#3c2b12}.color-badge.choosing{color:#fff3d7;background:#3d5146}
+.color-swatch{width:14px;height:14px;background:currentColor;border-radius:50%;border:2px solid #ffffff80;box-shadow:inset 0 0 0 3px var(--suit)}
+.direction-caption{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:650;color:#4e3a27}
+.table-message{display:none}
+.card-flight{position:fixed;pointer-events:none;z-index:45;will-change:transform;transform-origin:center}
+.card-flight.old-discard{transform:rotate(7deg);z-index:44}
+.card-in-flight .pile.discard>.card{opacity:0}
+@media(min-width:1600px){.hand-area{height:196px}}
+@media(max-width:1120px){.hand-area{height:175px}}
+@media(max-width:860px){.hand-area{height:181px}}
+@media(max-width:540px){.table-shell{height:519px}.hand-area{height:146px}.color-badge{min-width:100px;font-size:12px;line-height:14px;padding:5px 10px;gap:7px}.direction-indicator{gap:9px}.direction-caption{font-size:9px}.turn-marker{width:19px;height:19px;right:-5px;bottom:-8px}.turn-marker .icon{width:10px;height:10px}.hand-turn-badge.on{font-size:8px!important;letter-spacing:0;padding:0 4px;gap:3px}}
+@media(prefers-reduced-motion:reduce){.opponent.active .player-pill,.hand-area.active{animation:none!important}}
+body.reduced-motion .opponent.active .player-pill,body.reduced-motion .hand-area.active{animation:none!important}
+/* Reserve a clear row below the pile captions for the larger color indicator. */
+.table-shell{height:700px}.direction-indicator{top:466px}
+@media(min-width:1600px){.table-shell{height:760px}.direction-indicator{top:510px}}
+@media(max-width:1120px){.table-shell{height:675px}.direction-indicator{top:455px}}
+@media(max-width:860px){.table-shell{height:665px}.direction-indicator{top:445px}}
+@media(max-width:540px){.table-shell{height:559px}.direction-indicator{top:368px}}
+@media(min-width:861px) and (max-height:780px){
+ .table-shell.live-table{height:580px}.live-table .piles{top:206px;gap:45px}.live-table .pile{width:95px;height:144px}.live-table .direction-indicator{top:390px}.live-table .hand-area{height:152px}.live-table .hand-rail{height:130px;padding-top:16px;padding-bottom:7px}.live-table .hand-card{width:75px;flex-basis:75px;height:112px}.live-table .hand-card .card-mark{font-size:48px}.live-table .hand-card .card-mark .icon{width:38px;height:38px}.live-table .hand-card .card-corner{font-size:11px}.live-table .hand-card .card-kind{font-size:6px;bottom:12px}.live-table .hand-card .wild-symbol{width:39px;height:39px}.live-table .hand-card .card.wild4 .card-mark{font-size:32px}
+}
+.color-badge:not(.yellow):not(.choosing){background:color-mix(in srgb,var(--suit) 75%,#163829)}
+.color-badge.choosing .color-swatch{background:conic-gradient(#df5861 0 25%,#3688b1 25% 50%,#e9b73e 50% 75%,#368b70 75% 100%);box-shadow:none}
+.table-shell.paused .opponent.active .player-pill,.table-shell.paused .hand-area.active{animation:none!important}

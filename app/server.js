@@ -10,6 +10,7 @@ import { RuleError } from './engine.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = path.join(ROOT, 'public');
+const HAS_LEGACY_SLIDE = await fs.access(path.join(PUBLIC, 'audio/legacy-card-slide.wav')).then(() => true, () => false);
 const PORT = Number(process.env.PORT || 4444);
 const rooms = new RoomManager();
 const peers = new Map();
@@ -17,7 +18,7 @@ const privateIPv4 = ip => /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./u.test(i
 const addresses = Object.values(os.networkInterfaces()).flat().filter(entry => entry && entry.family === 'IPv4' && !entry.internal).map(entry => entry.address);
 const lanAddress = addresses.find(privateIPv4) ?? addresses[0] ?? 'localhost';
 const inviteBase = process.env.ONE_PUBLIC_URL?.replace(/\/$/u, '') || `http://${lanAddress}:${PORT}`;
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.wav': 'audio/wav', '.webmanifest': 'application/manifest+json' };
 
 const json = (response, status, value) => {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -51,7 +52,7 @@ const server = http.createServer(async (request, response) => {
   try {
     const url = new URL(request.url, 'http://localhost');
     if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, { ok: true, game: 'One', port: PORT });
-    if (request.method === 'GET' && url.pathname === '/api/config') return json(response, 200, { inviteBase, port: PORT });
+    if (request.method === 'GET' && url.pathname === '/api/config') return json(response, 200, { inviteBase, port: PORT, cardSlideAudio: HAS_LEGACY_SLIDE ? '/audio/legacy-card-slide.wav' : null });
     if (request.method === 'POST' && url.pathname === '/api/rooms') {
       const input = await body(request); delete input.seed;
       return json(response, 201, rooms.create(input));

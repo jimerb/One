@@ -18,3 +18,4 @@ dist/
 !.env.example
 *.log
 .DS_Store
+/public/audio/legacy-card-slide.wav

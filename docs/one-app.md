@@ -47,3 +47,11 @@ Rooms are held in memory and expire after two hours without activity. Restart cl
 Browser checks used separate localhost/LAN origins for host and guest credentials, a 390×844 phone viewport, named joining, separate hands, a guest card play, host drawing/keeping, reload restoration, synchronized pause/stop and computer-only Pause/Step/Stop. Physical phone cameras and tablets have not been tested. Retained views: [desktop](screenshots/desktop.jpg), [phone](screenshots/mobile.jpg), [computer observer](screenshots/computers.jpg). Run the commands above to reproduce the automated checks and match simulations.
 
 The engine is `app/engine.js`, strategy `app/ai.js`, room controller `app/rooms.js`, server `app/server.js`, and browser interface `public/`. Tests are in `test/`. Original comparison probes and private research are excluded from this repository; no CD is required to run the game.
+
+## Table feedback
+
+The active opponent has a gold pane, halo and arrow. Your turn outlines your hand and displays a gold turn badge directly on the table. A larger, labeled color badge sits below the piles and immediately reflects Wild color choices. Observer seats stay fixed, even when following different hands.
+
+Accepted public play events move a card from its player to the discard pile over 420 milliseconds. The previous discard remains visible underneath until arrival. Animation never delays or changes a rule action. Rapid plays are coalesced, reconnect history is not replayed, and scrolling, resizing or hiding the page cancels an in-progress flight. Less motion and system reduced-motion settings suppress flights and pulsing, while retaining static highlights and sound preferences.
+
+The local card-arrival sample is optional and deliberately ignored by Git. If present, the server advertises it and the browser decodes it once; otherwise Web Audio generates a brief filtered-paper slide. Sound effects and volume controls apply to both. No CD mount is needed.

@@ -6,7 +6,7 @@ A modern, dark-mode card game for your browser. Play against computer opponents,
 
 ![Node.js 22 or newer](https://img.shields.io/badge/Node.js-22%2B-43853d?logo=node.js&logoColor=white)
 ![Default port 4444](https://img.shields.io/badge/port-4444-dbb878)
-![44 automated checks](https://img.shields.io/badge/checks-44%20passing-43853d)
+![50 automated checks](https://img.shields.io/badge/checks-50%20passing-43853d)
 
 ![One's dark-mode card table](docs/screenshots/desktop.jpg)
 
@@ -17,6 +17,7 @@ A modern, dark-mode card game for your browser. Play against computer opponents,
 - **Watch:** choose zero humans for four computers. Pause, resume, step through individual actions, change the pace, or stop the table.
 - **Three ways to play:** Original, Challenge, and Team.
 - **A few surprises:** optional Spy, Shark, and Mutant cards alongside the standard deck.
+- **Follow every move:** glowing turn markers, a highlighted hand when it is your turn, a clear current-color badge, and cards sliding from the player to the discard pile.
 - **Make it comfortable:** dark mode, four table themes, keyboard controls, optional sounds and music, less motion, and higher contrast.
 
 Every table has **four seats**. Computers fill the seats that humans don't take.
@@ -118,7 +119,9 @@ Computers use their own cards and public table information. They do not inspect 
 | 1 / 2 / 3 | Attempt a missed-call challenge on an opponent |
 | Esc | Open or close settings |
 
-In-game **How to play** explains the rules. Appearance and sound preferences stay on each device.
+In-game **How to play** explains the rules. Appearance and sound preferences stay on each device. **Less motion** disables card flights and pulsing while retaining clear static turn highlights; the system reduced-motion preference is also respected.
+
+Card sounds use a paper-slide effect. This local development copy can use the recovered CD card-arrival sample when it is present; the public repository uses a freshly synthesized paper-slide fallback and does not require the CD.
 
 ## Built to be checked
 
@@ -127,7 +130,7 @@ npm test
 npm run simulate -- 50
 ```
 
-The automated suite currently passes **44 checks**, covering special cards, challenges, scoring, hidden hands, fair computer decisions, lobby deadlines, disconnect recovery, pause/step/stop, HTTP endpoints, WebSocket authority, and independent decoding of the actual QR invitation.
+The automated suite currently passes **50 checks**, covering special cards, challenges, scoring, hidden hands, fair computer decisions, lobby deadlines, disconnect recovery, pause/step/stop, HTTP endpoints, WebSocket authority, and independent decoding of the actual QR invitation.
 
 The simulation command runs **300 full matches**: 50 seeds across three modes and two decks. The recorded validation run completed **214,682 actions**, with every match finished and card inventory checked throughout.
 

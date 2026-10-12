@@ -64,6 +64,14 @@ test('local HTTP, QR invitations, private WebSocket hands and host controls work
     const qr=await request(`/api/rooms/${host.code}/qr.svg`);assert.equal(qr.status,200);assert.equal(decodeInvitation(qr.body),`${base}/r/${host.code}`);
     const info=(await request(`/api/rooms/${host.code}`)).body;assert.equal(info.joined,2);assert.ok(!('token'in info));assert.ok(!('game'in info));
   });
+  await t.test('card audio is optional; an advertised local sample is a playable WAV',async()=>{
+    const config=(await request('/api/config')).body;
+    if(config.cardSlideAudio===null)return;
+    assert.equal(config.cardSlideAudio,'/audio/legacy-card-slide.wav');
+    const response=await fetch(`${base}${config.cardSlideAudio}`);
+    assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'audio/wav');
+    const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WAVE');
+  });
   const a=peer(base,host.token),b=peer(base,guest.token);t.after(()=>{a.socket.terminate();b.socket.terminate();});
   let hostView=(await a.wait(message=>message.type==='state')).state;await b.wait(message=>message.type==='state');
   await t.test('host starts, guest cannot stop, and each player receives a different private hand',async()=>{
