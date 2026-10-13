@@ -67,3 +67,33 @@ test('muting during loading and an unavailable file do not play a late announcem
   const failed=createOneAudio(()=>({effects:true,volume:50}),async()=>({ok:false}));
   assert.equal(await failed.play(f.context),false);
 });
+
+test('live Boing and Winner cues distinguish penalties, do not replay history, and include round/match wins', async () => {
+  const {liveTableSounds,winningSeats}=await import('../public/table-effects.js');
+  const base={code:'ABC123',status:'playing',game:{revision:1,events:[{id:1,type:'play'}]}};
+  const after=events=>({...base,game:{revision:2,events:[...base.game.events,...events]}});
+  const caught={id:2,type:'challenge',challengeKind:'one',success:true,count:2};
+  assert.deepEqual(liveTableSounds(base,after([caught])),['boing']);
+  for(const event of [{...caught,success:false},{...caught,challengeKind:'wild'},{id:2,type:'draw',count:2}])assert.deepEqual(liveTableSounds(base,after([event])),[]);
+  for(const type of ['round-end','match-end']){
+    const won=after([{id:2,type}]);assert.deepEqual(liveTableSounds(base,won),['winner']);
+    assert.deepEqual(liveTableSounds(won,won),[]);assert.deepEqual(liveTableSounds(null,won),[]);
+    assert.deepEqual(liveTableSounds(base,won,{reconnecting:true}),[]);
+  }
+  const game={phase:'roundOver',options:{mode:'team'},players:[0,1,2,3].map(id=>({id,team:id%2})),result:{winner:0},winners:[1,3]};
+  assert.deepEqual(winningSeats(game),[0,2]);game.phase='matchOver';assert.deepEqual(winningSeats(game),[1,3]);
+  game.phase='turn';assert.deepEqual(winningSeats(game),[]);
+});
+test('missed-One engine penalty produces a Boing cue in every connected player projection',async()=>{
+  const {liveTableSounds}=await import('../public/table-effects.js');
+  const game=fixture(true);game.players[0].unoEligible=true;game.players[0].unoOffense=true;
+  const caught=applyAction(game,1,{type:'challengeOne',target:0});
+  assert.equal(caught.players[0].hand.length,4);
+  for(let seat=0;seat<4;seat++)assert.deepEqual(liveTableSounds(view(game,seat),view(caught,seat)),['boing']);
+});
+test('master mute and live volume changes also apply to clips already playing',async()=>{
+  const f=audioFixture();assert.equal(await f.player.play(f.context),true);
+  f.prefs.volume=70;f.player.update();assert.equal(f.gains[0].gain.value,.7);
+  f.prefs.muted=true;f.player.update();assert.equal(f.gains[0].gain.value,0);
+  assert.equal(await f.player.play(f.context),false);
+});

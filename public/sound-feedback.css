@@ -1,0 +1,19 @@
+.sound-control { position: relative; }
+.sound-control summary { cursor: pointer; list-style: none; }
+.sound-control summary::-webkit-details-marker { display: none; }
+.sound-flyout { position: absolute; top: calc(100% + 10px); right: 0; width: 240px; max-width: calc(100vw - 32px); padding: 18px; border: 1px solid #819b8b; border-radius: 14px; background: #1b3028; color: #f4ead6; box-shadow: 0 10px 35px #0008; z-index: 80; }
+.sound-flyout label { display: flex; justify-content: space-between; font-size: 14px; }
+.sound-flyout input { width: 100%; min-height: 44px; accent-color: #e2bd7d; }
+.sound-flyout button { min-height: 44px; margin-top: 8px; }
+.sound-flyout small { display: block; margin-top: 12px; font-size: 11px; color: #b7c9ba; }
+.sound-control summary:focus-visible { outline: 2px solid #f0cf91; outline-offset: 3px; }
+.drawn-options .keep-pass { background: #367ab0; border: 1px solid #8dc9f5; color: #fff; box-shadow: 0 2px 8px #0003; }
+.drawn-options .keep-pass:hover { background: #458fc9; }
+.drawn-options .keep-pass:focus-visible { outline: 3px solid #c4e5ff; outline-offset: 3px; }
+.opponent.winner-glow .player-pill, .hand-area.winner-glow, .result-row.winner { border: 2px solid #f3d38e; border-radius: 12px; box-shadow: 0 0 14px #ffd37e99, 0 0 32px #ffd37e55; }
+.result-row.winner { background: #4d492a; color: #fff5d5; }
+.opponent.winner-glow .player-name { color: #fff2c9; }
+.hand-area.winner-glow { background: #ffe4a51a; }
+@media (max-width: 540px) {
+  .sound-flyout { position: fixed; top: 76px; right: 16px; }
+}

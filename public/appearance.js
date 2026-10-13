@@ -1,5 +1,5 @@
-// Change these two IDs when the preferred defaults are chosen. Saved choices win.
-export const DEFAULT_APPEARANCE = Object.freeze({ theme: 'tabletop', deck: 'classic' });
+// Initial appearance for devices without saved choices. Saved choices win.
+export const DEFAULT_APPEARANCE = Object.freeze({ theme: 'coastal-terrace-seated', deck: 'prism' });
 
 const standard = (id, name, description) => ({ id, name, description, group: 'standard', camera: 'standard' });
 const illustrated = (number, id, name, camera, description) => ({

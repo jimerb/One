@@ -324,7 +324,7 @@ export function applyAction(previous, actor, command) {
     const recipient = offender ? target : player;
     const cards = drawCards(game, 2); recipient.hand.push(...cards); sortHand(recipient);
     target.unoSafe = true; target.unoOffense = false;
-    event(game, 'challenge', offender ? `${player.name} caught ${target.name} without One. ${target.name} draws two.` : `${player.name}'s challenge failed. ${player.name} draws two.`, { actor, target: recipient.id, count: cards.length, success: offender });
+    event(game, 'challenge', offender ? `${player.name} caught ${target.name} without One. ${target.name} draws two.` : `${player.name}'s challenge failed. ${player.name} draws two.`, { actor, target: recipient.id, count: cards.length, success: offender, challengeKind: 'one' });
   } else if (command.type === 'challengeWild') {
     const challenge = game.wildChallenge;
     requireRule(challenge && !challenge.resolved && actor === challenge.recipient && actor === game.turn, 'Only the player drawing four can challenge.');

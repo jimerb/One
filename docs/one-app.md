@@ -36,7 +36,7 @@ These are modern presentation additions. The clean backgrounds contain no baked-
 
 The modal has a fixed close/Done area and a scrollable gallery, touch targets of at least 44 pixels, keyboard focus containment and return, and small WebP previews. The hand scrolls independently when many cards are held. Desktop, tablet portrait/landscape and phone layouts were checked in Chrome with touch emulation, including real draw/keep actions and a 17+ card hand; physical tablet hardware has not been tested.
 
-`public/appearance.js` is the catalog and contains the single `DEFAULT_APPEARANCE` setting. It currently retains `tabletop` and `classic`; change those IDs when the preferred defaults are chosen. Existing valid saved choices take precedence. Older preferences migrate without losing their Standard theme, and unknown theme/deck IDs fall back to these defaults. Appearance is saved per device, rather than in match rules or server room settings.
+`public/appearance.js` is the catalog and contains the single `DEFAULT_APPEARANCE` setting. New devices initially use Coastal Terrace — Seated View (`coastal-terrace-seated`) and Prism Atelier (`prism`). Existing valid saved choices take precedence. Older preferences migrate without losing their Standard theme, and unknown theme/deck IDs fall back to these defaults. Appearance is saved per device, rather than in match rules or server room settings.
 
 ## Intentional modern choices
 
@@ -63,6 +63,10 @@ Browser checks used separate localhost/LAN origins for host and guest credential
 The engine is `app/engine.js`, strategy `app/ai.js`, room controller `app/rooms.js`, server `app/server.js`, and browser interface `public/`. Tests are in `test/`. Original comparison probes and private research are excluded from this repository; no CD is required to run the game.
 
 ## Table feedback
+
+The header's Sound control opens a compact flyout with a live volume slider and mute/unmute button. These choices are saved on each device. Mute silences effects and background music; adjusting volume or muting also updates any announcement clip already playing. Keep & pass uses a blue button with a bright border to distinguish it from the drawn-card panel.
+
+The supplied `public/audio/boing.m4a` plays when a successful One catch awards the offender a two-card penalty. Ordinary draws and Wild Draw Four challenges do not use it. `public/audio/winner.m4a` plays once at each round or match victory. Both cues use the server's accepted public events on all connected devices and skip reconnect history. Winning player panels and result rows glow; Team rounds highlight both partners, and completed matches highlight every actual match winner. These are modern presentation choices, with no change to challenge timing or scoring.
 
 Successful human and computer One calls play the supplied `public/audio/one-announcement.m4a` clip on each connected device. This is a modern presentation choice: calls still follow the existing rule of announcing before playing down to one card. Early calls, repeated calls, initial snapshots and reconnect history do not play the clip. The public One flag determines eligibility without exposing a Spy-hidden hand. Each device must enable Sound effects and allow audio through a click or tap; its own volume applies. The clip is served by the game server, so guests do not need access to the original network file. Background tabs receive the announcement too, subject to browser audio restrictions.
 
