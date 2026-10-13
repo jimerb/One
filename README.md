@@ -18,7 +18,7 @@ A modern, dark-mode card game for your browser. Play against computer opponents,
 - **Three ways to play:** Original, Challenge, and Team.
 - **A few surprises:** optional Spy, Shark, and Mutant cards alongside the standard deck.
 - **Follow every move:** glowing turn markers, a highlighted hand when it is your turn, a clear current-color badge, and cards sliding from the player to the discard pile.
-- **Make it comfortable:** dark mode, four table themes, keyboard controls, optional sounds and music, less motion, and higher contrast.
+- **Make it comfortable:** dark mode, fourteen table themes, Classic or Prism Atelier cards, keyboard controls, optional sounds and music, less motion, and higher contrast.
 
 Every table has **four seats**. Computers fill the seats that humans don't take.
 
@@ -119,7 +119,9 @@ Computers use their own cards and public table information. They do not inspect 
 | 1 / 2 / 3 | Attempt a missed-call challenge on an opponent |
 | Esc | Open or close settings |
 
-In-game **How to play** explains the rules. Appearance and sound preferences stay on each device. **Less motion** disables card flights and pulsing while retaining clear static turn highlights; the system reduced-motion preference is also respected.
+In-game **How to play** explains the rules. **Themes**, beside the gear, opens a visual chooser for the four Standard tables and ten new boards: Velvet Lounge, Moonlit Conservatory, Orbital Observatory, Coastal Terrace, and Art Deco Theatre, each with a flat or seated view. Choose the Classic or illustrated Prism Atelier deck independently. Preferences stay on each device and survive reloads; friends can use different artwork at the same table. The chooser supports touch and tablet portrait/landscape layouts.
+
+The gear holds audio and accessibility preferences. **Less motion** disables card flights and pulsing while retaining clear static turn highlights; the system reduced-motion preference is also respected.
 
 Card sounds use a paper-slide effect. This local development copy can use the recovered CD card-arrival sample when it is present; the public repository uses a freshly synthesized paper-slide fallback and does not require the CD.
 

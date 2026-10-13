@@ -1,4 +1,6 @@
 import { motionEnabled, tableAnchor, latestLivePlay } from './table-effects.js';
+import { TABLE_THEMES, CARD_DECKS, normalizeAppearance, getTheme, cameraLabel } from './appearance.js';
+import { prismCardHTML } from './prism-cards.js';
 const app = document.querySelector('#app');
 const COLORS = { red: '#df5861', blue: '#3688b1', green: '#368b70', yellow: '#e9b73e' };
 const AVATARS = ['#e7bd82', '#bccdae', '#b3cbd1', '#d9b8aa'];
@@ -18,11 +20,13 @@ const paths = {
   mutant: '<path d="m12 2 2.5 6.5L21 11l-6.5 2.5L12 20l-2.5-6.5L3 11l6.5-2.5zM20 2v4m-2-2h4M3 18v4m-2-2h4"/>',
   shark: '<path d="M3 17c5-1 7-5 10-13 2 5 1 9 7 13M2 20c2-3 4 3 7 0s4 3 7 0 4 3 6 0"/>',
   close: '<path d="m6 6 12 12M18 6 6 18"/>', home: '<path d="m3 10 9-7 9 7v11H3zM9 21v-7h6v7"/>', leaf: '<path d="M20 3c-9 0-16 2-16 9s7 10 11 5 5-14 5-14zM3 21 16 8"/>',
+  themes: '<path d="M12 3a9 9 0 1 0 0 18h2a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h3a5 5 0 0 0 0-10z"/><circle cx="7" cy="10" r="1"/><circle cx="10" cy="6" r="1"/><circle cx="15" cy="6" r="1"/>',
   qr: '<path d="M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm12 0v3h3v4m3-7v3m-6 4h-2"/>', step: '<path d="m5 5 10 7-10 7zM19 5v14"/>', check: '<path d="m5 12 4 4L20 5"/>', trophy: '<path d="M7 3h10v7a5 5 0 0 1-10 0zM7 5H3v3a4 4 0 0 0 4 4m10-7h4v3a4 4 0 0 1-4 4M12 15v6M7 21h10"/>'
 };
 const icon = name => `<svg class="icon" viewBox="0 0 24 24" aria-hidden="true">${paths[name] ?? paths.play}</svg>`;
 const readStored = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } };
-let prefs = { theme: 'tabletop', effects: false, music: false, volume: 35, reducedMotion: false, contrast: false, ...readStored('one.preferences', {}) };
+const savedPreferences = readStored('one.preferences', {});
+let prefs = { effects: false, music: false, volume: 35, reducedMotion: false, contrast: false, ...savedPreferences, ...normalizeAppearance(savedPreferences) };
 let draft = { name: localStorage.getItem('one.name') || '', humanCount: 1, mode: 'original', specialCards: true, difficulty: 'hard', delay: 1, roundLimit: 1, scoreLimit: 0, lobbySeconds: 60, ...readStored('one.setup', {}) };
 let skipPresentation = true, activeFlight = null, lastFlightAt = 0;
 const systemMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -30,9 +34,11 @@ let room = null, credentials = null, socket = null, connected = false, reconnect
 let joinCode = location.pathname.match(/^\/r\/([A-Z0-9]{6})$/iu)?.[1].toUpperCase() ?? null;
 let lobby = null, inviteBase = location.origin, selectedCard = null, watchSeat = 'auto', lastEvent = 0, busy = false;
 let formError = '', modal = null, autoPaused = false, serverOffset = 0, toastTimer = null, abandoned = false;
-const savePrefs = () => { localStorage.setItem('one.preferences', JSON.stringify(prefs)); applyPreferences(); };
+let themeFilter = 'all', modalReturnAction = 'settings';
+const savePrefs = () => { try { localStorage.setItem('one.preferences', JSON.stringify(prefs)); } catch {} applyPreferences(); };
 function applyPreferences() {
   document.body.dataset.theme = prefs.theme;
+  document.body.dataset.deck = prefs.deck;
   document.body.classList.toggle('reduced-motion', !motionEnabled(prefs, systemMotion.matches));
   if (!motionEnabled(prefs, systemMotion.matches)) cancelFlight();
   document.body.classList.toggle('high-contrast', prefs.contrast);
@@ -87,7 +93,8 @@ const unlockAudio=()=>{if(prefs.effects||prefs.music)audio.init();};
 document.addEventListener('pointerdown',unlockAudio,{passive:true});
 document.addEventListener('keydown',unlockAudio);
 
-function cardHTML(card, back = false) {
+function cardHTML(card, back = false, deck = prefs.deck) {
+  if (deck === 'prism') return prismCardHTML(card, back);
   if (back) return '<div class="card card-back"><div class="card-inner"><div class="card-oval"></div><div class="back-word">one</div><div class="back-small">CARD TABLE</div></div></div>';
   const color = COLORS[card.color] ?? '#25443a';
   const corner = card.kind === 'number' ? card.value : ({ draw2: '+2', wild4: '+4', wild: '✦', reverse: '↔', skip: '⊘', spy: '◉', mutant: 'M', shark: '△' })[card.kind];
@@ -140,10 +147,11 @@ window.addEventListener('scroll',cancelFlight,{passive:true});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)cancelFlight();});
 function miniFan(player) {
   const count = player.hidden ? 5 : Math.min(7, player.count ?? 5);
-  const cards = Array.from({ length: count }, (_, index) => `<div class="mini-card" style="transform:translateX(${(index - (count-1)/2)*10}px) rotate(${(index-(count-1)/2)*9}deg)"><span>one</span></div>`).join('');
+  const cards = Array.from({ length: count }, (_, index) => `<div class="mini-card ${prefs.deck === 'prism' ? 'prism-mini' : ''}" style="transform:translateX(${(index - (count-1)/2)*10}px) rotate(${(index-(count-1)/2)*9}deg)">${prefs.deck === 'prism' ? cardHTML(null, true) : '<span>one</span>'}</div>`).join('');
   return `<div class="mini-fan" aria-label="${esc(player.name)}: ${player.hidden ? 'card count hidden by Spy' : player.alive === false ? 'eliminated' : `${count === 7 ? 'at least seven' : count} cards`}">${cards}<span class="count-badge ${player.hidden ? 'hidden' : ''}">${player.alive === false ? 'Out' : player.hidden ? icon('spy') : count === 7 ? '7+' : count}</span></div>`;
 }
 function tableHTML() {
+  const theme = getTheme(prefs.theme);
   const game = room?.game;
   const observer = room?.desiredHumans === 0;
   const viewer = observer ? (watchSeat === 'auto' ? game?.turn ?? 0 : Number(watchSeat)) : game?.viewer ?? 0;
@@ -165,7 +173,7 @@ function tableHTML() {
   const oneNeeded = myTurn && hand.length + (game.drawn ? 1 : 0) <= 2 && !own.oneCalled;
   let message = demo ? 'Match a color, a number, or a symbol.' : room.status === 'stopped' ? 'This table is stopped. Start a fresh game when you’re ready.' : room.paused ? 'Take your time. The table is paused.' : game.phase === 'matchOver' ? `${game.winners.map(id => players[id].name).join(' & ')} won the match.` : game.phase === 'roundOver' ? `${players[game.result.winner].name} won this round.` : game.phase === 'color' ? `${actor.name} is choosing the next color.` : observer ? `${actor.name} is thinking…` : myTurn ? game.pendingCount ? `Pick up ${game.pendingCount}${game.wildChallenge ? ' — or challenge the Wild Draw Four.' : ' and pass.'}` : game.drawn ? 'Play the drawn card, play a matching hand card, or keep it.' : 'Your turn. Click a matching card, or draw.' : `${actor.name}’s turn. Your cards are ready.`;
   if (invitation) message = 'A few friends. A few computers. One good table.';
-  return `<section class="table-shell ${game?'live-table':''} ${room?.paused?'paused':''} ${ownTurn?'own-turn':''}" aria-label="One card table">
+  return `<section class="table-shell ${game?'live-table':''} ${room?.paused?'paused':''} ${ownTurn?'own-turn':''} ${theme.art?'art-table':''}" data-camera="${theme.camera}" ${theme.art ? `style="--board-image:url('${theme.art}')"` : ''} aria-label="One card table">
     <div class="table-meta"><span>${icon('users')} FOUR SEATS</span><span>${demo ? 'PULL UP A CHAIR' : observer ? 'COMPUTER TABLE' : esc(titleCase(game?.options.mode ?? 'original'))}${game ? ` · ROUND ${game.round}` : ''}</span></div>
     <div class="wood-table"></div><div class="center-brand">one more round</div>
     <div class="opponent-row">${others.map(player => `<div data-seat="${player.id}" class="opponent ${playing && game?.turn === player.id && ['turn','color'].includes(game.phase) ? 'active' : ''} ${!player.alive ? 'eliminated' : ''}">
@@ -244,26 +252,58 @@ function render() {
   const oldRail = document.querySelector('.hand-rail'); const scroll = oldRail?.scrollLeft ?? 0;
   const focused = document.activeElement?.dataset.card;
   const headerControls = room?.host && room.status==='playing' && room.game?.phase!=='matchOver' ? `<button class="small-button" data-action="pause" aria-label="${room.paused?'Resume':'Pause'} table">${icon(room.paused?'play':'pause')}<span>${room.paused?'Resume':'Pause'}</span></button><button class="small-button danger" data-action="stop" aria-label="Stop game">${icon('stop')}<span>Stop</span></button>` : '';
-  app.innerHTML=`<header class="topbar"><button class="brand" data-action="home" aria-label="${room?'Leave this table and go home':'One home'}"><div class="brand-stack" aria-hidden="true"></div><div><div class="wordmark">one</div><div class="brand-sub">CARD TABLE</div></div></button><div class="header-center">${room?`<i class="connection-dot ${connected?'':'offline'}"></i>${connected?'At the table':'Reconnecting…'} · ${room.code}`:'A little luck. A clever card. A good table.'}</div><nav class="header-actions" aria-label="Table controls">${headerControls}<button class="small-button" data-action="sound" aria-label="${prefs.effects?'Mute':'Enable'} sound effects">${icon(prefs.effects?'sound':'mute')}<span>Sound ${prefs.effects?'on':'off'}</span></button><button class="small-button" data-action="help" aria-label="How to play">${icon('help')}<span>How to play</span></button><button class="small-button" data-action="settings" aria-label="Open settings">${icon('settings')}</button></nav></header><main class="page ${!room&&joinCode?'joining':room?.status==='lobby'?'inviting':''}"><div class="workspace">${tableHTML()}${room?room.status==='lobby'?lobbyHTML():gameHTML():joinCode?lobbyHTML():setupHTML()}</div><footer class="footer"><span>${icon('leaf')} FOUR SEATS. ONE GOOD ROUND.</span><span>${room?room.options.specialCards?'Spy, Shark & Mutant are in the deck':'Classic cards at the table':'Made for a few friends and a little friendly rivalry.'}</span></footer></main>`;
+  app.innerHTML=`<header class="topbar"><button class="brand" data-action="home" aria-label="${room?'Leave this table and go home':'One home'}"><div class="brand-stack" aria-hidden="true"></div><div><div class="wordmark">one</div><div class="brand-sub">CARD TABLE</div></div></button><div class="header-center">${room?`<i class="connection-dot ${connected?'':'offline'}"></i>${connected?'At the table':'Reconnecting…'} · ${room.code}`:'A little luck. A clever card. A good table.'}</div><nav class="header-actions" aria-label="Table controls">${headerControls}<button class="small-button" data-action="sound" aria-label="${prefs.effects?'Mute':'Enable'} sound effects">${icon(prefs.effects?'sound':'mute')}<span>Sound ${prefs.effects?'on':'off'}</span></button><button class="small-button" data-action="help" aria-label="How to play">${icon('help')}<span>How to play</span></button><button class="small-button themes-button" data-action="themes" aria-label="Choose themes and card deck">${icon('themes')}<span>Themes</span></button><button class="small-button" data-action="settings" aria-label="Open settings">${icon('settings')}</button></nav></header><main class="page ${!room&&joinCode?'joining':room?.status==='lobby'?'inviting':''}"><div class="workspace">${tableHTML()}${room?room.status==='lobby'?lobbyHTML():gameHTML():joinCode?lobbyHTML():setupHTML()}</div><footer class="footer"><span>${icon('leaf')} FOUR SEATS. ONE GOOD ROUND.</span><span>${room?room.options.specialCards?'Spy, Shark & Mutant are in the deck':'Classic cards at the table':'Made for a few friends and a little friendly rivalry.'}</span></footer></main>`;
   const rail=document.querySelector('.hand-rail'); if(rail)rail.scrollLeft=scroll;
   if(focused) document.querySelector(`[data-card="${CSS.escape(focused)}"]`)?.focus({preventScroll:true});
   updateCountdown();
 }
-function renderModal() {
+function themePreview(theme) {
+  return `<div class="theme-preview ${theme.art ? '' : `standard-preview ${theme.id}`}" aria-hidden="true">${theme.art ? `<img src="${theme.thumbnail}" loading="lazy" alt="">` : ''}</div>`;
+}
+function themeTile(theme) {
+  const selected = prefs.theme === theme.id;
+  return `<button type="button" class="theme-tile ${selected ? 'selected' : ''}" data-action="chooseTheme" data-theme="${theme.id}" aria-pressed="${selected}" aria-label="${theme.number ? `Theme ${theme.number}: ` : ''}${esc(theme.name)}, ${cameraLabel(theme.camera)}">
+    ${themePreview(theme)}${theme.number ? `<span class="theme-number">${theme.number}</span>` : ''}${selected ? `<span class="theme-selected" aria-hidden="true">${icon('check')}</span>` : ''}
+    <span class="theme-tile-copy"><span class="theme-tile-name">${esc(theme.name)}</span><span class="theme-tile-camera">${cameraLabel(theme.camera)}</span><span class="theme-tile-description">${esc(theme.description)}</span></span>
+  </button>`;
+}
+function themesHTML() {
+  const selected = getTheme(prefs.theme);
+  const collection = TABLE_THEMES.filter(theme => theme.group === 'collection' && (themeFilter === 'all' || theme.camera === themeFilter));
+  return `<div class="theme-content"><p>Choose a place to play, then a deck to make it yours.</p>
+    <div class="theme-summary" role="status" aria-live="polite">${themePreview(selected)}<div><small>YOUR TABLE</small><strong>${esc(selected.name)} · ${cameraLabel(selected.camera)}</strong><small>${esc(CARD_DECKS.find(deck => deck.id === prefs.deck).name)} cards</small></div></div>
+    <section aria-labelledby="deck-heading"><h3 id="deck-heading">The cards</h3><p>Choose your deck independently of the table.</p><div class="deck-options">${CARD_DECKS.map(deck => `<button type="button" class="deck-option ${prefs.deck === deck.id ? 'selected' : ''}" data-action="chooseDeck" data-deck="${deck.id}" aria-pressed="${prefs.deck === deck.id}" aria-label="${esc(deck.name)} card deck">
+      <span class="deck-preview" aria-hidden="true">${cardHTML({kind:'number',color:'blue',value:8},false,deck.id)}${cardHTML({kind:'number',color:'red',value:4},false,deck.id)}${cardHTML(null,true,deck.id)}</span><span class="deck-option-copy"><strong>${deck.name}</strong><small>${deck.description}</small></span>${prefs.deck === deck.id ? `<span class="theme-selected" aria-hidden="true">${icon('check')}</span>` : ''}</button>`).join('')}</div></section>
+    <section aria-labelledby="collection-heading"><div class="theme-section-head"><div><h3 id="collection-heading">The new collection <span class="theme-count">10</span></h3><p>Five settings. Two ways to sit at the table.</p></div><div class="theme-filters" role="group" aria-label="Filter table views">${[['all','All views'],['flat','Flat boards'],['seated','Seated views']].map(([value,label]) => `<button type="button" class="theme-filter ${themeFilter === value ? 'selected' : ''}" data-action="themeFilter" data-filter="${value}" aria-pressed="${themeFilter === value}">${label}</button>`).join('')}</div></div><div class="theme-grid">${collection.map(themeTile).join('')}</div></section>
+    <section aria-labelledby="standard-heading"><h3 id="standard-heading">Standard tables <span class="theme-count">4</span></h3><p>The original One table settings.</p><div class="theme-grid standard-grid">${TABLE_THEMES.filter(theme => theme.group === 'standard').map(themeTile).join('')}</div></section>
+    </div><div class="theme-footer"><small>Your choices stay on this device. Everyone keeps their own view of the same game.</small><button type="button" class="primary" data-action="closeModal">Done ${icon('check')}</button></div>`;
+}
+function renderModal(preserve = false) {
+  const previous = document.querySelector('.modal-backdrop');
+  const scroll = preserve ? previous?.querySelector('.theme-content')?.scrollTop ?? 0 : 0;
+  const focus = preserve ? document.activeElement : null;
+  const choice = focus?.dataset;
+  const restore = choice?.theme ? `[data-theme="${CSS.escape(choice.theme)}"][data-action=chooseTheme]` : choice?.deck ? `[data-deck="${CSS.escape(choice.deck)}"][data-action=chooseDeck]` : choice?.filter ? `[data-filter="${CSS.escape(choice.filter)}"]` : null;
   document.querySelector('.modal-backdrop')?.remove();
   if (!modal) return;
-  const settings = `<label class="setting-label">Table setting<select id="pref-theme">${[['tabletop','The wooden table'],['broadway','Broadway'],['circus','Circus'],['space','Space']].map(([value,label])=>`<option value="${value}" ${prefs.theme===value?'selected':''}>${label}</option>`).join('')}</select></label><label class="setting-label">Card sounds<input id="pref-effects" type="checkbox" ${prefs.effects?'checked':''}></label><label class="setting-label">Quiet background music<input id="pref-music" type="checkbox" ${prefs.music?'checked':''}></label><label class="setting-label">Volume<input id="pref-volume" type="range" min="0" max="100" value="${prefs.volume}"></label><label class="setting-label">Less motion<input id="pref-motion" type="checkbox" ${prefs.reducedMotion?'checked':''}></label><label class="setting-label">Higher contrast<input id="pref-contrast" type="checkbox" ${prefs.contrast?'checked':''}></label><small>These settings stay on this device. The cards and rules stay the same in every theme.</small>`;
+  const settings = `<button type="button" class="secondary block" data-action="themes">${icon('themes')} Choose your table & cards</button><label class="setting-label">Card sounds<input id="pref-effects" type="checkbox" ${prefs.effects?'checked':''}></label><label class="setting-label">Quiet background music<input id="pref-music" type="checkbox" ${prefs.music?'checked':''}></label><label class="setting-label">Volume<input id="pref-volume" type="range" min="0" max="100" value="${prefs.volume}"></label><label class="setting-label">Less motion<input id="pref-motion" type="checkbox" ${prefs.reducedMotion?'checked':''}></label><label class="setting-label">Higher contrast<input id="pref-contrast" type="checkbox" ${prefs.contrast?'checked':''}></label><small>These settings stay on this device.</small>`;
   const help = `<p>Play a card matching the top discard’s color, number, or symbol. Wilds choose the next color. Empty your hand to win the round.</p><h3>Don’t forget One</h3><p>Call <b>ONE!</b> before playing your second-to-last card. Another player can catch a missed call until the next legal draw, play, or pass. A catch costs two cards, once. Hard computers watch between human turns too; Spy hides your count. If nobody catches you before the next valid move, there is no penalty. An early call can also be caught.</p><h3>Draws and challenges</h3><p>You may draw even when you can play. Play the drawn card, play another matching hand card, or keep it and pass. Draw Two and Wild Draw Four cost the next player their turn; you can’t stack them. Only the player drawing four may challenge: a bluff makes its player draw four, a failed challenge costs six.</p><h3>The three surprises</h3><ul><li><b>Spy:</b> hides your card count while you hold it.</li><li><b>Shark:</b> circles the table and bites a random player with four cards. It might be you.</li><li><b>Mutant:</b> becomes the next drawn card and applies that card’s effect.</li></ul><h3>Three ways to play</h3><p><b>Original:</b> winners collect the points left in opponents’ hands. <b>Challenge:</b> leftover points count against you; reach the limit and you’re out. <b>Team:</b> opposite seats are partners, with a shared score.</p><h3>Keyboard shortcuts</h3><p>Arrow keys select cards. Space plays the selected card. Enter draws or keeps. U calls One. R / G / B / Y choose a Wild color. Esc opens or closes settings. 1 / 2 / 3 attempt a missed-call challenge on opponents.</p><h3>Friends at the table</h3><p>Choose two, three, or four humans and share the QR invitation. The host can start early. Empty seats become computers at the end of the invitation window. If a player disconnects, their seat waits 30 seconds, then a computer keeps it moving. Reconnecting restores the same hand.</p>`;
   const backdrop=document.createElement('div');backdrop.className='modal-backdrop';
-  backdrop.innerHTML=`<section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><h2 id="modal-title">${modal==='settings'?'Make yourself comfortable.':'A good hand starts here.'}</h2><button class="close" data-action="closeModal" aria-label="Close dialog">${icon('close')}</button></div>${modal==='settings'?settings:help}</section>`;
-  document.body.append(backdrop); backdrop.querySelector('.close').focus();
+  backdrop.innerHTML=`<section class="modal ${modal === 'themes' ? 'theme-modal' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><div>${modal === 'themes' ? '<div class="eyebrow">A PLACE FOR YOUR NEXT GOOD ROUND</div>' : ''}<h2 id="modal-title">${modal==='themes'?'Make the table yours.':modal==='settings'?'Make yourself comfortable.':'A good hand starts here.'}</h2></div><button class="close" data-action="closeModal" aria-label="Close dialog">${icon('close')}</button></div>${modal==='themes'?themesHTML():modal==='settings'?settings:help}</section>`;
+  document.body.append(backdrop);
+  (restore ? backdrop.querySelector(restore) : null)?.focus({preventScroll:true});
+  if (!restore || !backdrop.querySelector(restore)) backdrop.querySelector('.close').focus({preventScroll:true});
+  if (preserve) backdrop.querySelector('.theme-content')?.scrollTo(0,scroll);
 }
 function openModal(which) {
   cancelFlight();
-  modal=which; autoPaused=!!room?.host && room.desiredHumans<=1 && room.status==='playing' && !room.paused && room.game?.phase!=='matchOver';
-  if(autoPaused)host('pause'); renderModal();
+  if (!modal) {
+    autoPaused=!!room?.host && room.desiredHumans<=1 && room.status==='playing' && !room.paused && room.game?.phase!=='matchOver';
+    if(autoPaused)host('pause');
+  }
+  modalReturnAction=which; modal=which; app.inert=true; document.body.classList.add('dialog-open'); renderModal();
 }
-function closeModal() { if(autoPaused&&room?.status==='playing')host('pause');autoPaused=false;modal=null;renderModal();document.querySelector('[data-action=settings]')?.focus(); }
+function closeModal() { if(autoPaused&&room?.status==='playing')host('pause');autoPaused=false;modal=null;renderModal();app.inert=false;document.body.classList.remove('dialog-open');document.querySelector(`[data-action="${modalReturnAction}"]`)?.focus({preventScroll:true}); }
 function rememberForm() {
   const form=document.querySelector('#create-form'); if(!form)return;
   const data=new FormData(form);
@@ -345,7 +385,19 @@ document.addEventListener('click',async event=>{
   const type=button.dataset.action;
   if(type==='humans'){rememberForm();draft.humanCount=Number(button.dataset.count);localStorage.setItem('one.setup',JSON.stringify(draft));render();}
   else if(type==='sound'){prefs.effects=!prefs.effects;audio.init();savePrefs();render();if(prefs.effects)audio.effect('one');}
-  else if(type==='help'||type==='settings')openModal(type);
+  else if(type==='help'||type==='settings'||type==='themes')openModal(type);
+  else if(type==='chooseTheme'){
+    if (!TABLE_THEMES.some(theme => theme.id === button.dataset.theme)) return;
+    cancelFlight(); prefs.theme=button.dataset.theme; savePrefs(); render(); renderModal(true);
+  }
+  else if(type==='chooseDeck'){
+    if (!CARD_DECKS.some(deck => deck.id === button.dataset.deck)) return;
+    cancelFlight(); prefs.deck=button.dataset.deck; savePrefs(); render(); renderModal(true);
+  }
+  else if(type==='themeFilter'){
+    if (!['all','flat','seated'].includes(button.dataset.filter)) return;
+    themeFilter=button.dataset.filter; renderModal(true);
+  }
   else if(type==='closeModal')closeModal();
   else if(type==='home')goHome();
   else if(['pause','stop','restart','start','extend','nextRound','step'].includes(type))host(type);
@@ -364,7 +416,7 @@ document.addEventListener('change',event=>{
   if(target.closest('#create-form')){rememberForm();if(target.name==='mode')render();}
   if(target.id==='watch-seat'){watchSeat=target.value;render();}
   if(target.id==='watch-speed')host('speed',{delay:Number(target.value)});
-  const prefMap={'pref-theme':'theme','pref-effects':'effects','pref-music':'music','pref-volume':'volume','pref-motion':'reducedMotion','pref-contrast':'contrast'};
+  const prefMap={'pref-effects':'effects','pref-music':'music','pref-volume':'volume','pref-motion':'reducedMotion','pref-contrast':'contrast'};
   if(prefMap[target.id]){prefs[prefMap[target.id]]=target.type==='checkbox'?target.checked:target.type==='range'?Number(target.value):target.value;savePrefs();audio.updateMusic();render();}
 });
 document.addEventListener('keydown',event=>{

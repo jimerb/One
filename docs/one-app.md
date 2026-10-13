@@ -24,7 +24,19 @@ Spy hides the owner's public card count while held. Shark scans live seats using
 
 Original awards opponents' leftover points to the round winner. Opposite seats are Team partners, share their score, and exclude partner leftovers. Challenge adds leftover points against their owners and eliminates at the target. Two survivors reset scores for a final hand. Dealer selection, opening actions, tied winners and score-or-round completion are retained.
 
-Arrow keys select a card, Space plays it, Enter draws or keeps, U calls One, and R/G/B/Y choose a Wild color. Keys 1/2/3 attempt catches on opponents. Esc opens/closes settings. In-game Help explains the rules. Settings offer four table themes, optional sounds/music, volume, less motion and higher contrast. Dark mode is the default in every theme.
+Arrow keys select a card, Space plays it, Enter draws or keeps, U calls One, and R/G/B/Y choose a Wild color. Keys 1/2/3 attempt catches on opponents. Esc opens/closes settings. In-game Help explains the rules. Themes, beside the gear, opens the visual table and card-deck chooser. The gear holds optional sounds/music, volume, less motion and higher contrast. Dark mode is the default in every theme.
+
+## Table and deck choices
+
+The chooser retains the four existing Table Setting choices under **Standard tables**: The wooden table, Broadway, Circus and Space. The new collection contains all ten numbered board concepts: 1–5 are flat views and 6–10 are seated views of Velvet Lounge, Moonlit Conservatory, Orbital Observatory, Coastal Terrace and Art Deco Theatre. View filters narrow the collection without changing the selected table. Choices apply immediately; Done or Escape closes the screen.
+
+Classic and Prism Atelier are independent card-art choices. Prism uses newly generated floral, wave, botanical and sun textures, illustrated Spy/Shark/Mutant/Wild faces and a universal prism back. Numbers 0–9, action symbols, suit names and card-type labels come from the renderer. Every suited special card has the actual suit's border, indices and name banner; the illustration never determines its rules or color. Opponent backs remain identical and a held Spy retains the fixed symbolic fan and hidden-count badge.
+
+These are modern presentation additions. The clean backgrounds contain no baked-in interface or cards; the live HTML controls, private projections and authoritative engine remain responsible for the game. Changing appearance retains the current hand, actor, score and pending decisions. A solo/computer-only host's open menu pauses and resumes its scheduler as before; a shared room's local chooser does not pause the other players.
+
+The modal has a fixed close/Done area and a scrollable gallery, touch targets of at least 44 pixels, keyboard focus containment and return, and small WebP previews. The hand scrolls independently when many cards are held. Desktop, tablet portrait/landscape and phone layouts were checked in Chrome with touch emulation, including real draw/keep actions and a 17+ card hand; physical tablet hardware has not been tested.
+
+`public/appearance.js` is the catalog and contains the single `DEFAULT_APPEARANCE` setting. It currently retains `tabletop` and `classic`; change those IDs when the preferred defaults are chosen. Existing valid saved choices take precedence. Older preferences migrate without losing their Standard theme, and unknown theme/deck IDs fall back to these defaults. Appearance is saved per device, rather than in match rules or server room settings.
 
 ## Intentional modern choices
 

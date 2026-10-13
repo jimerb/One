@@ -18,7 +18,7 @@ const privateIPv4 = ip => /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[01])\./u.test(i
 const addresses = Object.values(os.networkInterfaces()).flat().filter(entry => entry && entry.family === 'IPv4' && !entry.internal).map(entry => entry.address);
 const lanAddress = addresses.find(privateIPv4) ?? addresses[0] ?? 'localhost';
 const inviteBase = process.env.ONE_PUBLIC_URL?.replace(/\/$/u, '') || `http://${lanAddress}:${PORT}`;
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.wav': 'audio/wav', '.webmanifest': 'application/manifest+json' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.wav': 'audio/wav', '.webmanifest': 'application/manifest+json' };
 
 const json = (response, status, value) => {
   response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
