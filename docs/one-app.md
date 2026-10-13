@@ -64,6 +64,8 @@ The engine is `app/engine.js`, strategy `app/ai.js`, room controller `app/rooms.
 
 ## Table feedback
 
+Successful human and computer One calls play the supplied `public/audio/one-announcement.m4a` clip on each connected device. This is a modern presentation choice: calls still follow the existing rule of announcing before playing down to one card. Early calls, repeated calls, initial snapshots and reconnect history do not play the clip. The public One flag determines eligibility without exposing a Spy-hidden hand. Each device must enable Sound effects and allow audio through a click or tap; its own volume applies. The clip is served by the game server, so guests do not need access to the original network file. Background tabs receive the announcement too, subject to browser audio restrictions.
+
 The active opponent has a gold pane, halo and arrow. Your turn outlines your hand and displays a gold turn badge directly on the table. A larger, labeled color badge sits below the piles and immediately reflects Wild color choices. Observer seats stay fixed, even when following different hands.
 
 Accepted public play events move a card from its player to the discard pile over 420 milliseconds. The previous discard remains visible underneath until arrival. Animation never delays or changes a rule action. Rapid plays are coalesced, reconnect history is not replayed, and scrolling, resizing or hiding the page cancels an in-progress flight. Less motion and system reduced-motion settings suppress flights and pulsing, while retaining static highlights and sound preferences.

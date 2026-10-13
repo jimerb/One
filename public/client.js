@@ -1,4 +1,5 @@
-import { motionEnabled, tableAnchor, latestLivePlay } from './table-effects.js';
+import { motionEnabled, tableAnchor, latestLivePlay, liveOneCalls } from './table-effects.js';
+import { createOneAudio } from './one-audio.js';
 import { TABLE_THEMES, CARD_DECKS, normalizeAppearance, getTheme, cameraLabel } from './appearance.js';
 import { prismCardHTML } from './prism-cards.js';
 const app = document.querySelector('#app');
@@ -48,9 +49,10 @@ function toast(message) {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove('visible'), 3800);
 }
 
+const oneAudio = createOneAudio(() => prefs);
 const audio = {
   context: null, musicTimer: null, melodyIndex: 0, slideURL: null, slideBuffer: null, slideLoad: null, lastSlideAt: -1,
-  init() { try { this.context ??= new AudioContext(); this.context.resume().catch(()=>{}); this.loadSlide(); } catch {} },
+  init() { try { this.context ??= new AudioContext(); this.context.resume().catch(()=>{}); this.loadSlide(); oneAudio.load(this.context); } catch {} },
   loadSlide() {
     if(!this.context || !this.slideURL || this.slideLoad)return;
     this.slideLoad=fetch(this.slideURL).then(response=>{if(!response.ok)throw Error('No local sample');return response.arrayBuffer();}).then(data=>this.context.decodeAudioData(data)).then(buffer=>{this.slideBuffer=buffer;}).catch(()=>{});
@@ -76,8 +78,7 @@ const audio = {
     osc.connect(gain); gain.connect(this.context.destination); osc.start(at); osc.stop(at + duration + .03);
   },
   effect(type) { if (!prefs.effects) return; this.init();
-    if (type === 'one') { this.note(523,.14); this.note(659,.14,.12); this.note(784,.2,.24); }
-    else if (['match-end','round-end'].includes(type)) { [523,659,784,1046].forEach((n,i) => this.note(n,.25,i*.12)); }
+    if (['match-end','round-end'].includes(type)) { [523,659,784,1046].forEach((n,i) => this.note(n,.25,i*.12)); }
     else if (type === 'shark' || type === 'challenge') { this.note(180,.15,0,.11,'triangle'); this.note(240,.15,.1,.07,'triangle'); }
     else if (type === 'play' || type === 'draw') this.slide();
   },
@@ -286,7 +287,7 @@ function renderModal(preserve = false) {
   const restore = choice?.theme ? `[data-theme="${CSS.escape(choice.theme)}"][data-action=chooseTheme]` : choice?.deck ? `[data-deck="${CSS.escape(choice.deck)}"][data-action=chooseDeck]` : choice?.filter ? `[data-filter="${CSS.escape(choice.filter)}"]` : null;
   document.querySelector('.modal-backdrop')?.remove();
   if (!modal) return;
-  const settings = `<button type="button" class="secondary block" data-action="themes">${icon('themes')} Choose your table & cards</button><label class="setting-label">Card sounds<input id="pref-effects" type="checkbox" ${prefs.effects?'checked':''}></label><label class="setting-label">Quiet background music<input id="pref-music" type="checkbox" ${prefs.music?'checked':''}></label><label class="setting-label">Volume<input id="pref-volume" type="range" min="0" max="100" value="${prefs.volume}"></label><label class="setting-label">Less motion<input id="pref-motion" type="checkbox" ${prefs.reducedMotion?'checked':''}></label><label class="setting-label">Higher contrast<input id="pref-contrast" type="checkbox" ${prefs.contrast?'checked':''}></label><small>These settings stay on this device.</small>`;
+  const settings = `<button type="button" class="secondary block" data-action="themes">${icon('themes')} Choose your table & cards</button><label class="setting-label">Sound effects<input id="pref-effects" type="checkbox" ${prefs.effects?'checked':''}></label><label class="setting-label">Quiet background music<input id="pref-music" type="checkbox" ${prefs.music?'checked':''}></label><label class="setting-label">Volume<input id="pref-volume" type="range" min="0" max="100" value="${prefs.volume}"></label><label class="setting-label">Less motion<input id="pref-motion" type="checkbox" ${prefs.reducedMotion?'checked':''}></label><label class="setting-label">Higher contrast<input id="pref-contrast" type="checkbox" ${prefs.contrast?'checked':''}></label><small>These settings stay on this device.</small>`;
   const help = `<p>Play a card matching the top discard’s color, number, or symbol. Wilds choose the next color. Empty your hand to win the round.</p><h3>Don’t forget One</h3><p>Call <b>ONE!</b> before playing your second-to-last card. Another player can catch a missed call until the next legal draw, play, or pass. A catch costs two cards, once. Hard computers watch between human turns too; Spy hides your count. If nobody catches you before the next valid move, there is no penalty. An early call can also be caught.</p><h3>Draws and challenges</h3><p>You may draw even when you can play. Play the drawn card, play another matching hand card, or keep it and pass. Draw Two and Wild Draw Four cost the next player their turn; you can’t stack them. Only the player drawing four may challenge: a bluff makes its player draw four, a failed challenge costs six.</p><h3>The three surprises</h3><ul><li><b>Spy:</b> hides your card count while you hold it.</li><li><b>Shark:</b> circles the table and bites a random player with four cards. It might be you.</li><li><b>Mutant:</b> becomes the next drawn card and applies that card’s effect.</li></ul><h3>Three ways to play</h3><p><b>Original:</b> winners collect the points left in opponents’ hands. <b>Challenge:</b> leftover points count against you; reach the limit and you’re out. <b>Team:</b> opposite seats are partners, with a shared score.</p><h3>Keyboard shortcuts</h3><p>Arrow keys select cards. Space plays the selected card. Enter draws or keeps. U calls One. R / G / B / Y choose a Wild color. Esc opens or closes settings. 1 / 2 / 3 attempt a missed-call challenge on opponents.</p><h3>Friends at the table</h3><p>Choose two, three, or four humans and share the QR invitation. The host can start early. Empty seats become computers at the end of the invitation window. If a player disconnects, their seat waits 30 seconds, then a computer keeps it moving. Reconnecting restores the same hand.</p>`;
   const backdrop=document.createElement('div');backdrop.className='modal-backdrop';
   backdrop.innerHTML=`<section class="modal ${modal === 'themes' ? 'theme-modal' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="modal-head"><div>${modal === 'themes' ? '<div class="eyebrow">A PLACE FOR YOUR NEXT GOOD ROUND</div>' : ''}<h2 id="modal-title">${modal==='themes'?'Make the table yours.':modal==='settings'?'Make yourself comfortable.':'A good hand starts here.'}</h2></div><button class="close" data-action="closeModal" aria-label="Close dialog">${icon('close')}</button></div>${modal==='themes'?themesHTML():modal==='settings'?settings:help}</section>`;
@@ -331,7 +332,8 @@ function connect(value) {
     if(room.game){
       const latestEvent=room.game.events.at(-1)?.id??0;if(latestEvent<lastEvent)lastEvent=0;
       const events=room.game.events.filter(item=>item.id>lastEvent);lastEvent=latestEvent;
-      if(previous?.game&&!skipPresentation&&!document.hidden)for(const item of events)if(item.type!=='play')audio.effect(item.type);
+      for(const item of liveOneCalls(previous,room,{reconnecting:skipPresentation})) { audio.init(); void oneAudio.play(audio.context); }
+      if(previous?.game&&!skipPresentation&&!document.hidden)for(const item of events)if(item.type!=='play'&&item.type!=='one')audio.effect(item.type);
       if(events.length)document.querySelector('#announcer').textContent=events.at(-1).text;
       if(room.game.drawn && previous?.game?.drawn?.id !== room.game.drawn.id) selectedCard=room.game.drawn.id;
       if(selectedCard&&!room.game.hand.some(card=>card.id===selectedCard)&&room.game.drawn?.id!==selectedCard)selectedCard=null;
@@ -384,7 +386,7 @@ document.addEventListener('click',async event=>{
   const button=event.target.closest('[data-action]');if(!button||button.disabled)return;
   const type=button.dataset.action;
   if(type==='humans'){rememberForm();draft.humanCount=Number(button.dataset.count);localStorage.setItem('one.setup',JSON.stringify(draft));render();}
-  else if(type==='sound'){prefs.effects=!prefs.effects;audio.init();savePrefs();render();if(prefs.effects)audio.effect('one');}
+  else if(type==='sound'){prefs.effects=!prefs.effects;audio.init();savePrefs();render();if(prefs.effects)audio.note(523,.14);}
   else if(type==='help'||type==='settings'||type==='themes')openModal(type);
   else if(type==='chooseTheme'){
     if (!TABLE_THEMES.some(theme => theme.id === button.dataset.theme)) return;

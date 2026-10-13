@@ -72,6 +72,11 @@ test('local HTTP, QR invitations, private WebSocket hands and host controls work
     assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'audio/wav');
     const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.toString('ascii',0,4),'RIFF');assert.equal(bytes.toString('ascii',8,12),'WAVE');
   });
+  await t.test('every device can fetch the bundled One announcement as MP4 audio',async()=>{
+    const response=await fetch(`${base}/audio/one-announcement.m4a`);
+    assert.equal(response.status,200);assert.equal(response.headers.get('content-type'),'audio/mp4');
+    const bytes=Buffer.from(await response.arrayBuffer());assert.equal(bytes.toString('ascii',4,8),'ftyp');assert.ok(bytes.length>1000);
+  });
   const a=peer(base,host.token),b=peer(base,guest.token);t.after(()=>{a.socket.terminate();b.socket.terminate();});
   let hostView=(await a.wait(message=>message.type==='state')).state;await b.wait(message=>message.type==='state');
   await t.test('host starts, guest cannot stop, and each player receives a different private hand',async()=>{
