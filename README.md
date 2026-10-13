@@ -1,5 +1,11 @@
 # One
 
+**[Play One online — open the public game](https://one-card-table.jimerb.chatgpt.site)**
+
+Enter your name and choose how many human players will join. Choose **1** to play against three computers, or **2–4** to play with friends. For multiplayer, share the QR invitation or copy the invitation link; each friend opens it, enters a name, and joins the same table. The person who created the table selects **Start now**, or waits for the countdown. Computers fill any remaining seats.
+
+The public game works from phones, tablets, and computers. Players can be on different networks; no account, installation, or incoming firewall opening is needed. The online server coordinates the game and keeps each player's hand private. Enable **Sound** for the announcement, penalty, and winner sounds, and use its flyout to adjust volume or mute.
+
 **Four seats. One good round.**
 
 A modern, dark-mode card game for your browser. Play against computer opponents, invite friends with a QR code, or let four computers play while you watch. No accounts, downloads, or app installation for players.
@@ -22,7 +28,7 @@ A modern, dark-mode card game for your browser. Play against computer opponents,
 
 Every table has **four seats**. Computers fill the seats that humans don't take.
 
-## Start playing
+## Run the game locally
 
 Install [Node.js](https://nodejs.org/) **22 or newer**, then:
 
@@ -37,7 +43,7 @@ Open **[http://localhost:4444](http://localhost:4444)**. Enter your name, choose
 
 The default is a quick, one-round Original game with the special cards enabled and Hard computers. Open **Match length & pace** to change the round limit, point target, computer think time, or invitation window.
 
-## Invite friends by QR
+## Invite friends by QR when running locally
 
 1. Choose **2, 3, or 4 humans**, including the host.
 2. Select **Invite your friends** to display the QR code and invitation link.
@@ -164,4 +170,4 @@ One is a fresh implementation inspired by the mechanics of the 2000 Uno CD-ROM e
 
 Rooms live in server memory: **restarting the server closes existing games**. A browser reload restores your seat through its saved credential. Disconnected humans have 30 seconds to reconnect before a computer continues their hand; returning with that credential restores human control.
 
-The current setup is intended for a local network. Persistent game storage and public Internet hosting are not configured. The implementation follows the recovered rule behavior where verified; it does not claim exact reproduction of the original Windows interface or animation timing.
+The local setup described here is intended for a local network and stores rooms in server memory. The public link at the top runs a separate Sites-hosted edition with shared online tables and persistent room storage; it does not depend on the local server staying on. Both versions follow the recovered rule behavior where verified; neither claims exact reproduction of the original Windows interface or animation timing.
