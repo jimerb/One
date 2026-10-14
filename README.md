@@ -164,7 +164,7 @@ docs/screenshots/     Desktop, phone, and observer screenshots
 
 [Read the detailed game and implementation guide](docs/one-app.md).
 
-One is a fresh implementation inspired by the mechanics of the 2000 Uno CD-ROM edition. The original binaries, recovered code, extracted artwork, and private investigation files are **not included** in this repository. All interface artwork here is newly created. This project is not affiliated with or endorsed by Mattel.
+One is a fresh implementation. All interface artwork here is newly created.
 
 ## Current limits
 

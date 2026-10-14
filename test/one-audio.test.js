@@ -86,7 +86,7 @@ test('live Boing and Winner cues distinguish penalties, do not replay history, a
 });
 test('missed-One engine penalty produces a Boing cue in every connected player projection',async()=>{
   const {liveTableSounds}=await import('../public/table-effects.js');
-  const game=fixture(true);game.players[0].unoEligible=true;game.players[0].unoOffense=true;
+  const game=fixture(true);game.players[0].oneEligible=true;game.players[0].oneOffense=true;
   const caught=applyAction(game,1,{type:'challengeOne',target:0});
   assert.equal(caught.players[0].hand.length,4);
   for(let seat=0;seat<4;seat++)assert.deepEqual(liveTableSounds(view(game,seat),view(caught,seat)),['boing']);

@@ -62,7 +62,7 @@ export function nextSeat(game, from = game.turn) {
 const liveCount = game => game.players.filter(player => player.alive).length;
 function advance(game) { game.lastPlayer = game.turn; game.turn = nextSeat(game); }
 function clearChallenges(player) {
-  player.unoEligible = false; player.unoOffense = false; player.unoSafe = false;
+  player.oneEligible = false; player.oneOffense = false; player.oneSafe = false;
 }
 function clearPrevious(game) {
   if (game.lastPlayer !== null) clearChallenges(game.players[game.lastPlayer]);
@@ -225,7 +225,7 @@ export function createGame(seats, options = {}, seed = Date.now() >>> 0) {
   requireRule(rules.mode !== 'team' || seats.length === 4, 'Team games need four seats.');
   const game = { version: 1, revision: 0, options: rules, players: seats.map((seat, index) => ({
     id: index, name: seat.name, human: !!seat.human, alive: true, team: rules.mode === 'team' ? index % 2 : index,
-    score: 0, hand: [], oneCalled: false, unoEligible: false, unoOffense: false, unoSafe: false })),
+    score: 0, hand: [], oneCalled: false, oneEligible: false, oneOffense: false, oneSafe: false })),
     rngState: (seed >>> 0) || 0x9e3779b9, seed: seed >>> 0, events: [], eventSeq: 0, decoySeq: 0,
     round: 0, turns: 0, dealer: 0, turn: 0, lastPlayer: null, direction: 1, activeColor: null,
     draw: buildDeck(rules.specialCards), discard: [], pending: [], drawn: null, phase: 'turn', winners: [], result: null };
@@ -285,7 +285,7 @@ function scoreRound(game, winner) {
 function finishMove(game, actor) {
   if (game.drawn) { game.players[actor].hand.push(game.drawn); game.drawn = null; sortHand(game.players[actor]); }
   const player = game.players[actor];
-  if (player.hand.length === 1 && !player.oneCalled) { player.unoEligible = true; player.unoOffense = true; player.unoSafe = false; }
+  if (player.hand.length === 1 && !player.oneCalled) { player.oneEligible = true; player.oneOffense = true; player.oneSafe = false; }
   advance(game); game.turns++;
   // Effect traversal can visit skipped seats; the last mover is still the actor.
   game.lastPlayer = actor; game.lastPlayerOneCalled = player.oneCalled;
@@ -318,12 +318,12 @@ export function applyAction(previous, actor, command) {
     if (opening) beginTurn(game); else finishMove(game, actor);
   } else if (command.type === 'challengeOne') {
     const target = game.players[command.target];
-    requireRule(target?.alive && target !== player && target.unoEligible, 'That One call cannot be challenged now.');
-    requireRule(!target.unoSafe, 'That call has already been resolved.');
-    const offender = target.unoOffense;
+    requireRule(target?.alive && target !== player && target.oneEligible, 'That One call cannot be challenged now.');
+    requireRule(!target.oneSafe, 'That call has already been resolved.');
+    const offender = target.oneOffense;
     const recipient = offender ? target : player;
     const cards = drawCards(game, 2); recipient.hand.push(...cards); sortHand(recipient);
-    target.unoSafe = true; target.unoOffense = false;
+    target.oneSafe = true; target.oneOffense = false;
     event(game, 'challenge', offender ? `${player.name} caught ${target.name} without One. ${target.name} draws two.` : `${player.name}'s challenge failed. ${player.name} draws two.`, { actor, target: recipient.id, count: cards.length, success: offender, challengeKind: 'one' });
   } else if (command.type === 'challengeWild') {
     const challenge = game.wildChallenge;
@@ -344,7 +344,7 @@ export function applyAction(previous, actor, command) {
       if (player.hand.length + (game.drawn ? 1 : 0) <= 2) {
         player.oneCalled = true; event(game, 'one', `${player.name} called ONE!`, { actor });
       } else {
-        player.unoEligible = true; player.unoOffense = true; player.unoSafe = false;
+        player.oneEligible = true; player.oneOffense = true; player.oneSafe = false;
         // The other players see the call, not the private hand size or adjudication flag.
         event(game, 'one', `${player.name} called ONE!`, { actor });
       }

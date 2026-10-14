@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "One: a modern four-seat card table based on the recovered Uno CD rules.",
+  "description": "One: a modern four-seat card table.",
   "scripts": {
     "start": "node app/server.js",
     "test": "node --test test/*.test.js",

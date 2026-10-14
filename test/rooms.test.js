@@ -9,7 +9,7 @@ const manager = t => { const value = new RoomManager({timers:false}); t.after(()
 function missedCallTable(rooms, room, actor) {
   const game=room.game,pool=buildDeck(true);
   const take=(kind,color,value)=>{const index=pool.findIndex(card=>card.kind===kind&&card.color===color&&(value===undefined||card.value===value));return pool.splice(index,1)[0];};
-  game.players.forEach((player,id)=>{player.hand=id===actor?[take('number','red',3),take('number','blue',8)]:[take('number','green',id+1),take('number','yellow',id+1)];player.oneCalled=player.unoEligible=player.unoOffense=player.unoSafe=false;});
+  game.players.forEach((player,id)=>{player.hand=id===actor?[take('number','red',3),take('number','blue',8)]:[take('number','green',id+1),take('number','yellow',id+1)];player.oneCalled=player.oneEligible=player.oneOffense=player.oneSafe=false;});
   game.discard=[take('number','red',5)];game.activeColor='red';game.draw=pool;game.pending=[];game.drawn=null;
   game.turn=actor;game.direction=actor===1?-1:1;game.lastPlayer=null;game.lastPlayerOneCalled=false;game.phase='turn';game.colorChoice=null;game.wildChallenge=null;
   game.mayPass=false;game.events=[];game.eventSeq=0;game.turns=0;game.penaltyKind=null;game.penaltyActor=null;

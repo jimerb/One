@@ -14,7 +14,7 @@ function fixture({ hands = [[n('red', 3), n('blue', 8)], [n('blue', 4)], [n('gre
     assert.notEqual(index, -1, `Fixture card exists: ${JSON.stringify(face)}`);
     return pool.splice(index, 1)[0];
   };
-  game.players.forEach((player, id) => { player.hand = hands[id].map(take); player.score = 0; player.alive = alive[id] ?? true; player.oneCalled = player.unoEligible = player.unoOffense = player.unoSafe = false; });
+  game.players.forEach((player, id) => { player.hand = hands[id].map(take); player.score = 0; player.alive = alive[id] ?? true; player.oneCalled = player.oneEligible = player.oneOffense = player.oneSafe = false; });
   game.discard = [take(top)]; game.draw = [...stock.map(take), ...pool]; game.drawn = null; game.pending = [];
   game.turn = 0; game.lastPlayer = null; game.dealer = hands.length - 1; game.direction = 1; game.activeColor = top.color;
   game.phase = 'turn'; game.colorChoice = null; game.wildChallenge = null; game.drawAttempted = false; game.mayPass = false;
@@ -128,10 +128,10 @@ test('early calls can be caught; only accepted legal draw/play/pass expires a mi
   let early=fixture(); early.players[0].hand.push(early.draw.shift());early=applyAction(early,0,{type:'one'});
   assert.equal(early.players[0].oneCalled,false);early=applyAction(early,2,{type:'challengeOne',target:0});assert.equal(early.players[0].hand.length,5);
   let game=play(fixture());rejectUnchanged(game,1,{type:'pass'},/Draw a card/u);
-  assert.ok(game.players[0].unoEligible);
+  assert.ok(game.players[0].oneEligible);
   game=applyAction(game,1,{type:'draw'});rejectUnchanged(game,2,{type:'challengeOne',target:0},/cannot be challenged/u);
   // The original wrong-call branch needs synthetic permission, as in the preserved backend probe.
-  game=fixture();game.players[1].unoEligible=true;game.players[1].unoOffense=false;
+  game=fixture();game.players[1].oneEligible=true;game.players[1].oneOffense=false;
   const wrong=applyAction(game,0,{type:'challengeOne',target:1});assert.equal(wrong.players[0].hand.length,4);assert.equal(wrong.turn,0);
 });
 
@@ -155,7 +155,7 @@ test('every playable card effect tracks the actual missed caller, not skipped se
 test('Skip and Reverse with two survivors keep a catch open even when the actor plays again', () => {
   for(const kind of ['skip','reverse']) {
     let game=fixture({hands:[[special(kind,'red'),n('blue',8)],[n('green',6)],[],[]],alive:[true,true,false,false]});
-    game=play(game);assert.equal(game.turn,0);assert.ok(game.players[0].unoEligible);
+    game=play(game);assert.equal(game.turn,0);assert.ok(game.players[0].oneEligible);
     // A call during the new turn cannot erase the preceding move's missed call.
     game=applyAction(game,0,{type:'one'});
     assert.deepEqual(chooseBotOneChallenge(game,1),{type:'challengeOne',target:0});
@@ -191,7 +191,7 @@ test('a valid One call remains safe through each special effect and its color ch
 test('hard catches are reliable without exposing Spy counts or private challenge truth', () => {
   let game=play(fixture());
   for(let roll=0;roll<100;roll++) {game.randomValues=[roll];assert.deepEqual(chooseBotAction(game,1),{type:'challengeOne',target:0});}
-  game.players[0].unoEligible=false;game.players[0].unoOffense=false;
+  game.players[0].oneEligible=false;game.players[0].oneOffense=false;
   assert.deepEqual(chooseBotOneChallenge(game,1),{type:'challengeOne',target:0}); // decision still uses public facts only
   let hidden=play(fixture({hands:[[n('red',3),special('spy','blue')],[n('blue',4)],[n('green',6)],[n('yellow',7)]]}));
   assert.equal(chooseBotOneChallenge(hidden,1),null);
@@ -203,9 +203,9 @@ test('hard catches are reliable without exposing Spy counts or private challenge
 test('drawing and transit are counted before deciding whether a One call is valid', () => {
   let game=fixture({hands:[[n('red',3)],[n('blue',4)],[n('green',6)],[n('yellow',7)]],stock:[n('red',8)]});
   game=applyAction(game,0,{type:'draw'});game=play(game,0,game.drawn);
-  assert.ok(game.players[0].unoEligible);game=applyAction(game,2,{type:'challengeOne',target:0});assert.equal(game.players[0].hand.length,3);
+  assert.ok(game.players[0].oneEligible);game=applyAction(game,2,{type:'challengeOne',target:0});assert.equal(game.players[0].hand.length,3);
   game=fixture({stock:[n('red',8)]});game=applyAction(game,0,{type:'draw'});game=applyAction(game,0,{type:'one'});
-  assert.equal(game.players[0].oneCalled,false);assert.ok(game.players[0].unoOffense); // two held plus transit is three
+  assert.equal(game.players[0].oneCalled,false);assert.ok(game.players[0].oneOffense); // two held plus transit is three
 });
 
 test('illegal Wild Draw Four is challengeable only by its recipient after color choice', () => {
@@ -236,7 +236,7 @@ test('Spy hides the public count and projections do not expose seed, RNG, stock,
   let game=fixture({hands:[[n('red',3),n('blue',8)],[special('spy','blue'),n('blue',4)],[n('green',6)],[n('yellow',7)]]});
   const view=projectGame(game,0);assert.equal(view.players[1].count,null);assert.equal(view.players[1].hidden,true);assert.equal(view.hand.length,2);
   for(const key of ['seed','rngState','randomValues','draw','pending','initialCardIds','observerHands'])assert.ok(!(key in view));
-  assert.ok(view.players.every(player=>!('hand'in player)&&!('unoEligible'in player)&&!('unoOffense'in player)&&!('unoSafe'in player)));
+  assert.ok(view.players.every(player=>!('hand'in player)&&!('oneEligible'in player)&&!('oneOffense'in player)&&!('oneSafe'in player)));
   game.turn=1;game.activeColor='blue';game=play(game,1);assert.equal(projectGame(game,0).players[1].hidden,false);assert.equal(projectGame(game,0).players[1].count,1);
   assert.equal(projectGame(game,null,true).observerHands.length,4);
 });
