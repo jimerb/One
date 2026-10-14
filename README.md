@@ -14,7 +14,7 @@ A modern, dark-mode card game for your browser. Play against computer opponents,
 ![Default port 4444](https://img.shields.io/badge/port-4444-dbb878)
 ![59 automated checks](https://img.shields.io/badge/checks-59%20passing-43853d)
 
-![One's dark-mode card table](docs/screenshots/desktop.jpg)
+![One’s Coastal Terrace table with Prism Atelier cards](docs/screenshots/OneHero.jpg)
 
 ## Pull up a chair
 
@@ -85,9 +85,29 @@ Match the discard's **color, number, or symbol**. Empty your hand to win the rou
 
 The standard deck has **108 cards**. Enabling Spy, Shark, and Mutant expands it to **120**.
 
+### Drawing and passing
+
 You may draw even when you can play. After drawing, play the new card, play another matching card from your hand, or **Keep & pass**. Draw penalties cannot be stacked.
 
-A missed One call can be caught before the next accepted draw, play, or pass; a catch costs the offender two cards, once. Hard computers watch for visible missed calls even between two human turns. If nobody catches before the next accepted move, there is no penalty. Calling too early can also be challenged. Only the player receiving a Wild Draw Four may challenge it: a successful challenge makes the offender draw four and lets the challenger keep the turn; failure costs six cards and a lost turn.
+### Wild Draw Four and challenges
+
+Play Wild Draw Four to choose a color and give the next player a four-card penalty. It is a bluff if you still hold a card of the **previous active color**. A matching number or symbol in a different color does not count.
+
+Only the player receiving the penalty may challenge, after the color choice and before accepting the cards.
+
+| Their choice | Result |
+| --- | --- |
+| **Accept** | Draw four and lose the turn. |
+| **Challenge succeeds** | The player who bluffed draws four. The challenger draws nothing and keeps the turn: play, draw, or pass. |
+| **Challenge fails** | The challenger draws six in total and loses the turn. |
+
+**Example:** Blue is active. Playing Draw Four while still holding a blue 7 is a bluff; holding only a red 7 is not.
+
+If Draw Four is the last card in a hand, the four-card penalty settles before scoring, with no color choice or later challenge.
+
+### Calling One and catching a missed call
+
+Call **ONE!** before playing your second-to-last card. A missed call can be caught before the next accepted draw, play, or pass; a catch costs the offender two cards, once. Hard computers watch for visible missed calls even between two human turns. If nobody catches before the next accepted move, there is no penalty. Calling too early can also be challenged.
 
 ### Choose your match
 

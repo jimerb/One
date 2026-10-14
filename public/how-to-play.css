@@ -1,0 +1,63 @@
+.help-modal { width:min(880px,100%); max-width:880px; max-height:calc(100dvh - 48px); padding:0; overflow:hidden; display:flex; flex-direction:column; background:#14271e; border-color:#526047; }
+.help-modal .modal-head { flex:none; margin:0; padding:22px 28px; gap:20px; border-bottom:1px solid #3c5140; background:linear-gradient(110deg,#263c2b,#15271e); }
+.help-modal .modal-head h2 { font-size:32px; }
+.help-nav { flex:none; display:flex; flex-wrap:wrap; gap:4px 8px; padding:10px 22px; border-bottom:1px solid #3c5140; }
+.help-nav a { min-height:44px; display:flex; align-items:center; padding:8px 12px; border-radius:9px; color:#ead5a6; font-size:13px; font-weight:650; text-decoration:none; }
+.help-nav a:hover { background:#304735; }
+.help-content { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:24px 28px 30px; scrollbar-width:thin; scrollbar-color:#617357 transparent; }
+.help-content section { margin-top:28px; scroll-margin-top:20px; }
+.help-modal .help-content h3 { font-family:Georgia,serif; font-size:23px; font-weight:400; letter-spacing:-.3px; line-height:1.25; margin:0 0 14px; color:#f0e3c7; }
+.help-modal h4 { font-size:14px; line-height:1.35; color:#f0e3c7; margin:0 0 6px; }
+.help-modal p, .help-modal li, .help-modal dd { font-size:14px; line-height:1.65; color:#c0cdb8; }
+.help-modal p { margin:0 0 12px; }
+.help-modal strong, .help-modal b { color:#eee2c5; }
+.help-kicker { display:block; color:#ccbd91; font-size:10px; font-weight:750; line-height:1.5; letter-spacing:1.4px; margin-bottom:5px; }
+.help-intro { padding:20px 22px; border:1px solid #5d7350; border-radius:14px; background:#2c4130; }
+.help-modal .help-intro p { font-family:Georgia,serif; font-size:24px; line-height:1.4; color:#f0e3c7; margin:0; }
+.help-intro strong { font-family:Inter,"Segoe UI",Arial,sans-serif; font-size:13px; font-weight:400; }
+.help-steps { list-style:none; counter-reset:steps; padding:0; margin:0; display:grid; gap:15px; }
+.help-steps li { position:relative; counter-increment:steps; padding-left:44px; }
+.help-steps li::before { content:counter(steps); position:absolute; left:0; top:1px; width:30px; height:30px; display:grid; place-items:center; border-radius:50%; background:#ddbd79; color:#203225; font-weight:800; }
+.help-steps strong, .help-steps span { display:block; }
+.help-card-grid, .help-two-col { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.help-card { display:flex; align-items:flex-start; gap:14px; background:#1e3427; border:1px solid #41563e; padding:16px; border-radius:12px; }
+.help-card p, .help-outcomes p, .help-mode-grid p { margin:0; }
+.help-symbol { flex:none; width:42px; height:56px; display:grid; place-items:center; background:#375543; border:2px solid #d9ca9e; border-radius:7px; color:#f3e6c5; font-size:20px; font-weight:800; }
+.help-symbol.help-wild { background:linear-gradient(145deg,#783d43,#355874 43%,#365c45 70%,#8c742d); }
+.help-modal p.help-note { font-size:13px; color:#b5c4ac; margin:14px 0 0; padding-left:12px; border-left:3px solid #788f64; }
+.help-content .help-feature { padding:22px; border:1px solid #9b8559; border-radius:14px; background:linear-gradient(135deg,#2d3f2d,#1f3227); }
+.help-feature-heading { display:flex; align-items:center; gap:16px; margin-bottom:16px; }
+.help-modal .help-feature-heading h3 { margin:0; }
+.help-outcomes, .help-mode-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.help-outcomes article, .help-mode-grid article { padding:16px; background:#15291f; border:1px solid #526347; border-radius:10px; }
+.help-outcomes h4 { font-size:20px; color:#ebcc8f; }
+.help-modal .help-example { margin:16px 0 0; }
+.help-definitions { margin:0; }
+.help-definitions > div { display:grid; grid-template-columns:80px minmax(0,1fr); gap:12px; padding:12px 0; border-bottom:1px solid #3c5140; }
+.help-modal dt { color:#ead8b0; font-weight:700; line-height:1.65; }
+.help-modal dd { margin:0; }
+.help-keys { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 24px; margin:0; }
+.help-keys > div { display:grid; grid-template-columns:125px minmax(0,1fr); align-items:start; gap:10px; }
+.help-keys kbd { display:inline-block; font:12px/1.5 Inter,"Segoe UI",Arial,sans-serif; border:1px solid #71805d; border-bottom-width:2px; border-radius:5px; padding:2px 5px; color:#ebdec0; background:#2b4230; }
+.help-footer { flex:none; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 28px; border-top:1px solid #3c5140; color:#afbd9d; font-size:12px; background:#15271e; }
+.help-footer button { width:auto; min-height:44px; margin:0; padding:12px 20px; }
+@media(max-width:650px) {
+  .help-modal { max-height:calc(100dvh - 24px); }
+  .help-modal .modal-head { padding:16px 18px; }
+  .help-modal .modal-head h2 { font-size:27px; }
+  .help-nav { padding:6px 10px; gap:0; }
+  .help-nav a { font-size:12px; padding:8px 10px; }
+  .help-content { padding:18px; }
+  .help-modal .help-content h3 { font-size:21px; }
+  .help-card-grid, .help-two-col, .help-outcomes, .help-mode-grid, .help-keys { grid-template-columns:1fr; }
+  .help-card { padding:14px; }
+  .help-content .help-feature { padding:16px; }
+  .help-feature-heading { gap:12px; }
+  .help-intro { padding:16px; }
+  .help-modal .help-intro p { font-size:21px; }
+  .help-definitions > div { grid-template-columns:65px minmax(0,1fr); }
+  .help-footer { padding:12px 18px; }
+  .help-footer span { display:none; }
+  .help-footer button { width:100%; }
+}
+@media(prefers-reduced-motion:reduce) { .help-content { scroll-behavior:auto; } }
